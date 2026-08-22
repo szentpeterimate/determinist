@@ -151,7 +151,7 @@ export default function Generator() {
 
     return (
         <>
-            <div className='card'>
+            <div className='card flex flex-col items-center justify-center gap-0'>
                 <form onSubmit={handleGenerate} className='generator grid place-items-center'>
                     <div className="flex flex-col gap-2">
                         <div className='w-full h-full'>
@@ -276,15 +276,17 @@ export default function Generator() {
                             }
                             { error ? <p className='text-red-500 mt-4'>At least one type of character must be selected</p> : null}
                         </div>
+                        <PresetHandler onChange={(presetText) => handlePresets(presetText)}/>
                         <div className="w-full h-full grid place-items-center">
                             <button className='btn text-center' type='submit'>Generate</button>
                         </div>
                     </div>
                 </form>
+            <div className="flex relative justify-center items-center w-full h-full">
+                <div className={`card-success absolute top-6 md:top-10 lg:top-20 w-fit ${hash ? 'show' : ''}`}>
+                    <p className='result font-bold'>{hash}</p>
+                </div>
             </div>
-            <PresetHandler onChange={(presetText) => handlePresets(presetText)}/>
-            <div className={`card-success ${hash ? 'show' : ''}`}>
-                <p className='result font-bold'>{hash}</p>
             </div>
         </>
     );
