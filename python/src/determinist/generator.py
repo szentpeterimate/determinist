@@ -79,7 +79,7 @@ def generate_password_cli(ctx: typer.Context,
             master_pass = typer.prompt("Master pass")
             assert master_pass is not None
         if not site_name:
-            site_name = typer.prompt("Master pass")
+            site_name = typer.prompt("Site name")
             assert site_name is not None
 
         content = {}
