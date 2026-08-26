@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
     "argon2-cffi>=25.1.0",
+    "click>=8.5.0",
     "cryptography>=50.0.0",
     "platformdirs>=4.11.0",
     "setuptools>=83.0.0",

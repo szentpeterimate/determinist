@@ -1,6 +1,7 @@
 import typer
 import json
 import sys
+import click
 from typing import Literal, Annotated, Optional
 from string import punctuation
 from .algorithms import v1, v2, v3
@@ -11,7 +12,6 @@ from .config_handler import ConfigHandler
 from pathlib import Path
 from itertools import zip_longest
 from ._version import __commit_id__, __version__
-from datetime import datetime
 
 app = typer.Typer()
 
@@ -120,20 +120,36 @@ def generate_password_cli(ctx: typer.Context,
         print(success_table)
 
 @generate_app.command(name="prompt", help="Generate a password by prompting")
-def generate_password_prompt(master_pass: Annotated[str, typer.Option(prompt="Master pass", help="The master passphrase", rich_help_panel="Required")], 
+def generate_password_prompt(master_pass: Annotated[str, typer.Option(prompt="Master pass", help="The master passphrase", rich_help_panel="Required", hide_input=True)], 
                              site_name: Annotated[str, typer.Option(prompt="Site name", help="The name of the website or any string", rich_help_panel="Required")], 
-                             version: Annotated[int, typer.Option(min=1, max=3, prompt="Version", help="Algorithm version to use", rich_help_panel="General")] = 2,
                              pass_length: Annotated[int, typer.Option(min=6, max=32, prompt="Password length", help="Length of the generated password", rich_help_panel="General")] = 8, 
-                             char_map: Annotated[str, typer.Option(prompt="Character map (JSON in a string)", help="The character map used for swapping characters, enter in [bold]JSON[/] format inside a [bold]string[/]", rich_help_panel="Algorithm V1")] = "{}", 
-                             spec_chars: Annotated[str, typer.Option(prompt="Special characters (no separation)", help="Special characters used for insertion, without separation", rich_help_panel="Algorithm V1")] = punctuation, 
-                             spec_mode: Annotated[Literal["replace", "insert"], typer.Option(prompt="Special character mode", help="The special character mode", rich_help_panel="Algorithm V1")] = "insert",
-                             spec_freq: Annotated[int, typer.Option(prompt="Special character frequency", help="Frequency of inserted special characters", rich_help_panel="Algorithm V1")] = 4, 
-                             char_types: Annotated[str, typer.Option(prompt="Character types (comma separated)", help="Character sets to use, separated by commas", rich_help_panel="Algorithm V2")] = "special,lowercase,uppercase,digits",
-                             lowercase: Annotated[int, typer.Option(prompt="Amount of lowercase characters", help="Minimum required lowercase characters", rich_help_panel="Algorithm V3 (Use 0 to exclude character type)")] = 1,
-                             uppercase: Annotated[int, typer.Option(prompt="Amount of uppercase characters", help="Minimum required uppercase characters", rich_help_panel="Algorithm V3 (Use 0 to exclude character type)")] = 1,
-                             digits: Annotated[int, typer.Option(prompt="Amount of digits", help="Minimum required digits", rich_help_panel="Algorithm V3 (Use 0 to exclude character type)")] = 1,
-                             special: Annotated[int, typer.Option(prompt="Amount of special characters", help="Minimum required special characters", rich_help_panel="Algorithm V3 (Use 0 to exclude character type)")] = 1,
+                             version: Annotated[int, typer.Option(min=1, max=3, prompt="Version", help="Algorithm version to use", rich_help_panel="General")] = 2,
+                             char_map: Annotated[str, typer.Option(help="The character map used for swapping characters, enter in [bold]JSON[/] format", rich_help_panel="Algorithm V1")] = "{}", 
+                             spec_chars: Annotated[str, typer.Option(help="Special characters used for insertion, without separation", rich_help_panel="Algorithm V1")] = punctuation, 
+                             spec_mode: Annotated[Literal["replace", "insert"], typer.Option(help="The special character mode", rich_help_panel="Algorithm V1")] = "insert",
+                             spec_freq: Annotated[int, typer.Option(help="Frequency of inserted special characters", rich_help_panel="Algorithm V1")] = 4, 
+                             char_types: Annotated[str, typer.Option(help="Character sets to use, separated by commas", rich_help_panel="Algorithm V2")] = "special,lowercase,uppercase,digits",
+                             lowercase: Annotated[int, typer.Option(help="Minimum required lowercase characters", rich_help_panel="Algorithm V3 (Use 0 to exclude character type)")] = 1,
+                             uppercase: Annotated[int, typer.Option(help="Minimum required uppercase characters", rich_help_panel="Algorithm V3 (Use 0 to exclude character type)")] = 1,
+                             digits: Annotated[int, typer.Option(help="Minimum required digits", rich_help_panel="Algorithm V3 (Use 0 to exclude character type)")] = 1,
+                             special: Annotated[int, typer.Option(help="Minimum required special characters", rich_help_panel="Algorithm V3 (Use 0 to exclude character type)")] = 1,
                             ):
+
+    if version == 1:
+        spec_mode = typer.prompt("Special character mode", default="insert", type=click.Choice(["replace", "insert"]), show_choices=True)
+
+        if spec_mode == "insert":
+            spec_chars = typer.prompt("Special characters (no separation)", default=punctuation)
+            spec_freq = typer.prompt("Frequency of inserted special characters", default=4)
+        else:
+            char_map = typer.prompt("Character map (JSON format)", default="{}")
+    elif version == 2:
+        char_types = typer.prompt("Character types (comma separated)", default="special,lowercase,uppercase,digits")
+    elif version == 3:
+        lowercase = typer.prompt("Amount of lowercase characters", default=1)
+        uppercase = typer.prompt("Amount of uppercase characters", default=1)
+        digits = typer.prompt("Amount of digits", default=1)
+        special = typer.prompt("Amount of special characters", default=1)
     
     char_map_dict = json.loads(char_map)
     spec_chars_list = list(spec_chars)
