@@ -63,9 +63,13 @@ def _construct_pass(argon2_output: bytes, charset_list: list, pass_length: int, 
 
     return password
     
-def generate(master_pass: str, site_name: str, pass_length: int, char_map: dict[str, str], char_types: list, balancing: bool, min_chars: dict[str, int]) -> str:
-    types_set = set(char_types)
-    salt = master_pass + site_name + str(pass_length) + str(char_map) + str(balancing)
+def generate(master_pass: str, site_name: str, pass_length: int, char_types: dict[str, int]) -> str:
+    types_set = set()
+    for key, val in char_types.items():
+        if val > 0:
+            types_set.add(key)
+
+    salt = master_pass + site_name + str(pass_length) + str(char_types)
 
     random = Random(salt)
 
@@ -90,7 +94,7 @@ def generate(master_pass: str, site_name: str, pass_length: int, char_map: dict[
                                     type=Type.ID
                                 )
 
-    password = _construct_pass(charset_list, pass_length, hashed_bytes, min_chars)
+    password = _construct_pass(argon2_output=hashed_bytes, charset_list=charset_list, pass_length=pass_length, min_chars=char_types)
     
     password_to_shuffle = list(password)
 
