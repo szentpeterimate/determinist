@@ -1,9 +1,10 @@
 import typer
 import json
 import sys
+import click
 from typing import Literal, Annotated, Optional
 from string import punctuation
-from .algorithms import v1, v2
+from .algorithms import v1, v2, v3
 from rich import print, box
 from rich.table import Table
 from rich.prompt import Prompt
@@ -11,7 +12,6 @@ from .config_handler import ConfigHandler
 from pathlib import Path
 from itertools import zip_longest
 from ._version import __commit_id__, __version__
-from datetime import datetime
 
 app = typer.Typer()
 
@@ -31,7 +31,8 @@ def generate_password(master_pass: str,
                       pass_length: int = 8, 
                       spec_mode: Literal["replace", "insert"] = "insert",
                       spec_freq: int = 4, 
-                      char_types: list = ["special","lowercase","uppercase","digits"]
+                      char_types: list = ["special","lowercase","uppercase","digits"],
+                      char_types_and_freq: dict[str, int] = {"lowercase": 1, "uppercase": 1, "special": 1, "digits": 1}
                      ) -> str:
     """Deterministically generates a password based on the inputs"""
     
@@ -39,6 +40,8 @@ def generate_password(master_pass: str,
         return v1.generate(master_pass=master_pass, site_name=site_name, pass_length=pass_length, spec_mode=spec_mode, spec_chars=spec_chars, char_map=char_map, spec_freq=spec_freq)
     elif version == 2:
         return v2.generate(master_pass=master_pass, site_name=site_name, pass_length=pass_length, char_map=char_map, char_types=char_types)
+    elif version == 3:
+        return v3.generate(master_pass=master_pass, site_name=site_name, pass_length=pass_length, char_types=char_types_and_freq)
     else:
         raise ValueError(f"Unsupported algorithm version: {version}")
 
@@ -55,24 +58,28 @@ def version():
 
 @generate_app.callback(invoke_without_command=True, help="Generate a password")
 def generate_password_cli(ctx: typer.Context,
-                      master_pass: Annotated[Optional[str], typer.Option("--master", "-M", help="The master passphrase", rich_help_panel="Required")] = None,
-                      site_name: Annotated[Optional[str], typer.Option("--site", "-n", help="The name of the website or any string", rich_help_panel="Required")] = None,
-                      use_preset: Annotated[bool, typer.Option("--preset", "-p", help="Use a preset flag", rich_help_panel="General")] = False,
-                      version: Annotated[int, typer.Option("--version", "-v", min=1, max=2, help="Algorithm version to use", rich_help_panel="General")] = 2, 
-                      pass_length: Annotated[int, typer.Option("--length", "-l", min=6, max=32, help="Length of the generated password", rich_help_panel="General")] = 8, 
-                      char_map: Annotated[str, typer.Option("--map", help="The character map used for swapping characters, enter in [bold]JSON[/] format inside a [bold]string[/]", rich_help_panel="Algorithm V1")] = "{}", 
-                      spec_chars: Annotated[str, typer.Option("--special", "-s", help="Special characters used for insertion", rich_help_panel="Algorithm V1")] = punctuation, 
-                      spec_mode: Annotated[Literal["replace", "insert"], typer.Option("--mode", "-m", help="The special character mode", rich_help_panel="Algorithm V1")] = "insert",
-                      spec_freq: Annotated[int, typer.Option("--frequency", "-f", help="Frequency of inserted special characters", rich_help_panel="Algorithm V1")] = 4, 
-                      char_types: Annotated[str, typer.Option("--chars", "-c", help="Character sets to use", rich_help_panel="Algorithm V2")] = "special,lowercase,uppercase,digits",
-                     ):
+                          master_pass: Annotated[Optional[str], typer.Option("--master", "-M", help="The master passphrase", rich_help_panel="Required")] = None,
+                          site_name: Annotated[Optional[str], typer.Option("--site", "-n", help="The name of the website or any string", rich_help_panel="Required")] = None,
+                          use_preset: Annotated[bool, typer.Option("--preset", "-p", help="Use a preset flag", rich_help_panel="General")] = False,
+                          version: Annotated[int, typer.Option("--version", "-v", min=1, max=3, help="Algorithm version to use", rich_help_panel="General")] = 2, 
+                          pass_length: Annotated[int, typer.Option("--length", "-l", min=6, max=32, help="Length of the generated password", rich_help_panel="General")] = 8, 
+                          char_map: Annotated[str, typer.Option("--map", help="The character map used for swapping characters, enter in [bold]JSON[/] format inside a [bold]string[/]", rich_help_panel="Algorithm V1")] = "{}", 
+                          spec_chars: Annotated[str, typer.Option("--special", "-s", help="Special characters used for insertion", rich_help_panel="Algorithm V1")] = punctuation, 
+                          spec_mode: Annotated[Literal["replace", "insert"], typer.Option("--mode", "-m", help="The special character mode", rich_help_panel="Algorithm V1")] = "insert",
+                          spec_freq: Annotated[int, typer.Option("--frequency", "-f", help="Frequency of inserted special characters", rich_help_panel="Algorithm V1")] = 4, 
+                          char_types: Annotated[str, typer.Option("--chars", "-c", help="Character sets to use", rich_help_panel="Algorithm V2")] = "special,lowercase,uppercase,digits",
+                          lowercase: Annotated[int, typer.Option("--lowercase", "-L", help="Minimum required lowercase characters", rich_help_panel="Algorithm V3 (Use 0 to exclude character type)")] = 1,
+                          uppercase: Annotated[int, typer.Option("--uppercase", "-U", help="Minimum required uppercase characters", rich_help_panel="Algorithm V3 (Use 0 to exclude character type)")] = 1,
+                          digits: Annotated[int, typer.Option("--digits", "-D", help="Minimum required digits", rich_help_panel="Algorithm V3 (Use 0 to exclude character type)")] = 1,
+                          special: Annotated[int, typer.Option("--special-chars", "-S", help="Minimum required special characters", rich_help_panel="Algorithm V3 (Use 0 to exclude character type)")] = 1,
+                         ):
     
     if ctx.invoked_subcommand is None:
         if not master_pass:
             master_pass = typer.prompt("Master pass")
             assert master_pass is not None
         if not site_name:
-            site_name = typer.prompt("Master pass")
+            site_name = typer.prompt("Site name")
             assert site_name is not None
 
         content = {}
@@ -102,7 +109,9 @@ def generate_password_cli(ctx: typer.Context,
             char_types if isinstance(char_types, list) else char_types.split(",")
         )
 
-        password = generate_password(master_pass=master_pass, site_name=site_name, char_map=char_map_dict, char_types=char_types_list, pass_length=pass_length, version=version, spec_mode=spec_mode, spec_chars=spec_chars_list, spec_freq=spec_freq)
+        characters = {"lowercase": lowercase, "uppercase": uppercase, "digits": digits, "special": special}
+
+        password = generate_password(master_pass=master_pass, site_name=site_name, char_map=char_map_dict, char_types=char_types_list, pass_length=pass_length, version=version, spec_mode=spec_mode, spec_chars=spec_chars_list, spec_freq=spec_freq, char_types_and_freq=characters)
 
         success_table = Table(box=box.SIMPLE_HEAD, show_edge=False)
         success_table.add_column("\nPassword Generation Successful!", justify="center")
@@ -111,23 +120,44 @@ def generate_password_cli(ctx: typer.Context,
         print(success_table)
 
 @generate_app.command(name="prompt", help="Generate a password by prompting")
-def generate_password_prompt(
-                      master_pass: Annotated[str, typer.Option(prompt="Master pass", help="The master passphrase", rich_help_panel="Required")], 
-                      site_name: Annotated[str, typer.Option(prompt="Site name", help="The name of the website or any string", rich_help_panel="Required")], 
-                      version: Annotated[int, typer.Option(min=1, max=2, prompt="Version", help="Algorithm version to use", rich_help_panel="General")] = 2,
-                      pass_length: Annotated[int, typer.Option(min=6, max=32, prompt="Password length", help="Length of the generated password", rich_help_panel="General")] = 8, 
-                      char_map: Annotated[str, typer.Option(prompt="Character map (JSON in a string)", help="The character map used for swapping characters, enter in [bold]JSON[/] format inside a [bold]string[/]", rich_help_panel="Algorithm V1")] = "{}", 
-                      spec_chars: Annotated[str, typer.Option(prompt="Special characters (no separation)", help="Special characters used for insertion, without separation", rich_help_panel="Algorithm V1")] = punctuation, 
-                      spec_mode: Annotated[Literal["replace", "insert"], typer.Option(prompt="Special character mode", help="The special character mode", rich_help_panel="Algorithm V1")] = "insert",
-                      spec_freq: Annotated[int, typer.Option(prompt="Special character frequency", help="Frequency of inserted special characters", rich_help_panel="Algorithm V1")] = 4, 
-                      char_types: Annotated[str, typer.Option(prompt="Character types (comma separated)", help="Character sets to use, separated by commas", rich_help_panel="Algorithm V2")] = "special,lowercase,uppercase,digits"
-                     ):
+def generate_password_prompt(master_pass: Annotated[str, typer.Option(prompt="Master pass", help="The master passphrase", rich_help_panel="Required", hide_input=True)], 
+                             site_name: Annotated[str, typer.Option(prompt="Site name", help="The name of the website or any string", rich_help_panel="Required")], 
+                             pass_length: Annotated[int, typer.Option(min=6, max=32, prompt="Password length", help="Length of the generated password", rich_help_panel="General")] = 8, 
+                             version: Annotated[int, typer.Option(min=1, max=3, prompt="Version", help="Algorithm version to use", rich_help_panel="General")] = 2,
+                             char_map: Annotated[str, typer.Option(help="The character map used for swapping characters, enter in [bold]JSON[/] format", rich_help_panel="Algorithm V1")] = "{}", 
+                             spec_chars: Annotated[str, typer.Option(help="Special characters used for insertion, without separation", rich_help_panel="Algorithm V1")] = punctuation, 
+                             spec_mode: Annotated[Literal["replace", "insert"], typer.Option(help="The special character mode", rich_help_panel="Algorithm V1")] = "insert",
+                             spec_freq: Annotated[int, typer.Option(help="Frequency of inserted special characters", rich_help_panel="Algorithm V1")] = 4, 
+                             char_types: Annotated[str, typer.Option(help="Character sets to use, separated by commas", rich_help_panel="Algorithm V2")] = "special,lowercase,uppercase,digits",
+                             lowercase: Annotated[int, typer.Option(help="Minimum required lowercase characters", rich_help_panel="Algorithm V3 (Use 0 to exclude character type)")] = 1,
+                             uppercase: Annotated[int, typer.Option(help="Minimum required uppercase characters", rich_help_panel="Algorithm V3 (Use 0 to exclude character type)")] = 1,
+                             digits: Annotated[int, typer.Option(help="Minimum required digits", rich_help_panel="Algorithm V3 (Use 0 to exclude character type)")] = 1,
+                             special: Annotated[int, typer.Option(help="Minimum required special characters", rich_help_panel="Algorithm V3 (Use 0 to exclude character type)")] = 1,
+                            ):
+
+    if version == 1:
+        spec_mode = typer.prompt("Special character mode", default="insert", type=click.Choice(["replace", "insert"]), show_choices=True)
+
+        if spec_mode == "insert":
+            spec_chars = typer.prompt("Special characters (no separation)", default=punctuation)
+            spec_freq = typer.prompt("Frequency of inserted special characters", default=4)
+        else:
+            char_map = typer.prompt("Character map (JSON format)", default="{}")
+    elif version == 2:
+        char_types = typer.prompt("Character types (comma separated)", default="special,lowercase,uppercase,digits")
+    elif version == 3:
+        lowercase = typer.prompt("Amount of lowercase characters", default=1)
+        uppercase = typer.prompt("Amount of uppercase characters", default=1)
+        digits = typer.prompt("Amount of digits", default=1)
+        special = typer.prompt("Amount of special characters", default=1)
     
     char_map_dict = json.loads(char_map)
     spec_chars_list = list(spec_chars)
     char_types_list = char_types.split(',')
 
-    password = generate_password(master_pass=master_pass, site_name=site_name, char_map=char_map_dict, char_types=char_types_list, pass_length=pass_length, version=version, spec_mode=spec_mode, spec_chars=spec_chars_list, spec_freq=spec_freq)
+    characters = {"lowercase": lowercase, "uppercase": uppercase, "digits": digits, "special": special}
+
+    password = generate_password(master_pass=master_pass, site_name=site_name, char_map=char_map_dict, char_types=char_types_list, pass_length=pass_length, version=version, spec_mode=spec_mode, spec_chars=spec_chars_list, spec_freq=spec_freq, char_types_and_freq=characters)
 
     success_table = Table(box=box.SIMPLE_HEAD, show_edge=False)
     success_table.add_column("\nPassword Generation Successful!", justify="center")
