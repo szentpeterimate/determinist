@@ -23,11 +23,13 @@ app.add_typer(generate_app, name="generate")
 
 ch = ConfigHandler()
 
+LATEST_ALGORITHM = 3
+
 def generate_password(master_pass: str, 
                       site_name: str, 
                       char_map: dict[str, str] = {}, 
                       spec_chars: list = list(punctuation), 
-                      version: int = 2, 
+                      version: int = LATEST_ALGORITHM, 
                       pass_length: int = 8, 
                       spec_mode: Literal["replace", "insert"] = "insert",
                       spec_freq: int = 4, 
@@ -62,7 +64,7 @@ def generate_password_cli(ctx: typer.Context,
                           master_pass: Annotated[Optional[str], typer.Option("--master", "-M", help="The master passphrase", rich_help_panel="Required")] = None,
                           site_name: Annotated[Optional[str], typer.Option("--site", "-n", help="The name of the website or any string", rich_help_panel="Required")] = None,
                           use_preset: Annotated[bool, typer.Option("--preset", "-p", help="Use a preset flag", rich_help_panel="General")] = False,
-                          version: Annotated[int, typer.Option("--version", "-v", min=1, max=3, help="Algorithm version to use", rich_help_panel="General")] = 2, 
+                          version: Annotated[int, typer.Option("--version", "-v", min=1, max=LATEST_ALGORITHM, help="Algorithm version to use", rich_help_panel="General")] = LATEST_ALGORITHM, 
                           pass_length: Annotated[int, typer.Option("--length", "-l", min=6, max=32, help="Length of the generated password", rich_help_panel="General")] = 8, 
                           char_map: Annotated[str, typer.Option("--map", "-p", help="The character map used for swapping characters, enter in [bold]JSON[/] format inside a [bold]string[/]", rich_help_panel="Algorithm V1")] = "{}", 
                           spec_chars: Annotated[str, typer.Option("--special", "-s", help="Special characters used for insertion", rich_help_panel="Algorithm V1")] = punctuation, 
@@ -125,7 +127,7 @@ def generate_password_cli(ctx: typer.Context,
 def generate_password_prompt(master_pass: Annotated[str, typer.Option(prompt="Master pass", help="The master passphrase", rich_help_panel="Required", hide_input=True)], 
                              site_name: Annotated[str, typer.Option(prompt="Site name", help="The name of the website or any string", rich_help_panel="Required")], 
                              pass_length: Annotated[int, typer.Option(min=6, max=32, prompt="Password length", help="Length of the generated password", rich_help_panel="General")] = 8, 
-                             version: Annotated[int, typer.Option(min=1, max=3, prompt="Version", help="Algorithm version to use", rich_help_panel="General")] = 2,
+                             version: Annotated[int, typer.Option(min=1, max=LATEST_ALGORITHM, prompt="Version", help="Algorithm version to use", rich_help_panel="General")] = LATEST_ALGORITHM,
                              char_map: Annotated[str, typer.Option(help="The character map used for swapping characters, enter in [bold]JSON[/] format", rich_help_panel="Algorithm V1")] = "{}", 
                              spec_chars: Annotated[str, typer.Option(help="Special characters used for insertion, without separation", rich_help_panel="Algorithm V1")] = punctuation, 
                              spec_mode: Annotated[Literal["replace", "insert"], typer.Option(help="The special character mode", rich_help_panel="Algorithm V1")] = "insert",
