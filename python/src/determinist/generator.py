@@ -32,7 +32,8 @@ def generate_password(master_pass: str,
                       spec_mode: Literal["replace", "insert"] = "insert",
                       spec_freq: int = 4, 
                       char_types: list = ["special","lowercase","uppercase","digits"],
-                      char_types_and_freq: dict[str, int] = {"lowercase": 1, "uppercase": 1, "special": 1, "digits": 1}
+                      char_types_and_freq: dict[str, int] = {"lowercase": 1, "uppercase": 1, "special": 1, "digits": 1},
+                      differentiator: str | None = None
                      ) -> str:
     """Deterministically generates a password based on the inputs"""
     
@@ -41,7 +42,7 @@ def generate_password(master_pass: str,
     elif version == 2:
         return v2.generate(master_pass=master_pass, site_name=site_name, pass_length=pass_length, char_map=char_map, char_types=char_types)
     elif version == 3:
-        return v3.generate(master_pass=master_pass, site_name=site_name, pass_length=pass_length, char_types=char_types_and_freq)
+        return v3.generate(master_pass=master_pass, site_name=site_name, pass_length=pass_length, char_types=char_types_and_freq, add_info=differentiator)
     else:
         raise ValueError(f"Unsupported algorithm version: {version}")
 
@@ -63,7 +64,7 @@ def generate_password_cli(ctx: typer.Context,
                           use_preset: Annotated[bool, typer.Option("--preset", "-p", help="Use a preset flag", rich_help_panel="General")] = False,
                           version: Annotated[int, typer.Option("--version", "-v", min=1, max=3, help="Algorithm version to use", rich_help_panel="General")] = 2, 
                           pass_length: Annotated[int, typer.Option("--length", "-l", min=6, max=32, help="Length of the generated password", rich_help_panel="General")] = 8, 
-                          char_map: Annotated[str, typer.Option("--map", help="The character map used for swapping characters, enter in [bold]JSON[/] format inside a [bold]string[/]", rich_help_panel="Algorithm V1")] = "{}", 
+                          char_map: Annotated[str, typer.Option("--map", "-p", help="The character map used for swapping characters, enter in [bold]JSON[/] format inside a [bold]string[/]", rich_help_panel="Algorithm V1")] = "{}", 
                           spec_chars: Annotated[str, typer.Option("--special", "-s", help="Special characters used for insertion", rich_help_panel="Algorithm V1")] = punctuation, 
                           spec_mode: Annotated[Literal["replace", "insert"], typer.Option("--mode", "-m", help="The special character mode", rich_help_panel="Algorithm V1")] = "insert",
                           spec_freq: Annotated[int, typer.Option("--frequency", "-f", help="Frequency of inserted special characters", rich_help_panel="Algorithm V1")] = 4, 
@@ -72,6 +73,7 @@ def generate_password_cli(ctx: typer.Context,
                           uppercase: Annotated[int, typer.Option("--uppercase", "-U", help="Minimum required uppercase characters", rich_help_panel="Algorithm V3 (Use 0 to exclude character type)")] = 1,
                           digits: Annotated[int, typer.Option("--digits", "-D", help="Minimum required digits", rich_help_panel="Algorithm V3 (Use 0 to exclude character type)")] = 1,
                           special: Annotated[int, typer.Option("--special-chars", "-S", help="Minimum required special characters", rich_help_panel="Algorithm V3 (Use 0 to exclude character type)")] = 1,
+                          differentiator: Annotated[str, typer.Option("--differentiator", "-d", help="Extra information to help differentiate passwords", rich_help_panel="Algorithm V3 (Use 0 to exclude character type)")] = None,
                          ):
     
     if ctx.invoked_subcommand is None:
@@ -111,7 +113,7 @@ def generate_password_cli(ctx: typer.Context,
 
         characters = {"lowercase": lowercase, "uppercase": uppercase, "digits": digits, "special": special}
 
-        password = generate_password(master_pass=master_pass, site_name=site_name, char_map=char_map_dict, char_types=char_types_list, pass_length=pass_length, version=version, spec_mode=spec_mode, spec_chars=spec_chars_list, spec_freq=spec_freq, char_types_and_freq=characters)
+        password = generate_password(master_pass=master_pass, site_name=site_name, char_map=char_map_dict, char_types=char_types_list, pass_length=pass_length, version=version, spec_mode=spec_mode, spec_chars=spec_chars_list, spec_freq=spec_freq, char_types_and_freq=characters, differentiator=differentiator)
 
         success_table = Table(box=box.SIMPLE_HEAD, show_edge=False)
         success_table.add_column("\nPassword Generation Successful!", justify="center")
@@ -133,6 +135,7 @@ def generate_password_prompt(master_pass: Annotated[str, typer.Option(prompt="Ma
                              uppercase: Annotated[int, typer.Option(help="Minimum required uppercase characters", rich_help_panel="Algorithm V3 (Use 0 to exclude character type)")] = 1,
                              digits: Annotated[int, typer.Option(help="Minimum required digits", rich_help_panel="Algorithm V3 (Use 0 to exclude character type)")] = 1,
                              special: Annotated[int, typer.Option(help="Minimum required special characters", rich_help_panel="Algorithm V3 (Use 0 to exclude character type)")] = 1,
+                             differentiator: Annotated[str, typer.Option(help="Extra information to help differentiate passwords", rich_help_panel="Algorithm V3 (Use 0 to exclude character type)")] = None,
                             ):
 
     if version == 1:
@@ -143,6 +146,7 @@ def generate_password_prompt(master_pass: Annotated[str, typer.Option(prompt="Ma
             spec_freq = typer.prompt("Frequency of inserted special characters", default=4)
         else:
             char_map = typer.prompt("Character map (JSON format)", default="{}")
+
     elif version == 2:
         char_types = typer.prompt("Character types (comma separated)", default="special,lowercase,uppercase,digits")
     elif version == 3:
@@ -150,6 +154,7 @@ def generate_password_prompt(master_pass: Annotated[str, typer.Option(prompt="Ma
         uppercase = typer.prompt("Amount of uppercase characters", default=1)
         digits = typer.prompt("Amount of digits", default=1)
         special = typer.prompt("Amount of special characters", default=1)
+        differentiator = typer.prompt("Differentiator", default="", show_default=False)
     
     char_map_dict = json.loads(char_map)
     spec_chars_list = list(spec_chars)
@@ -157,7 +162,7 @@ def generate_password_prompt(master_pass: Annotated[str, typer.Option(prompt="Ma
 
     characters = {"lowercase": lowercase, "uppercase": uppercase, "digits": digits, "special": special}
 
-    password = generate_password(master_pass=master_pass, site_name=site_name, char_map=char_map_dict, char_types=char_types_list, pass_length=pass_length, version=version, spec_mode=spec_mode, spec_chars=spec_chars_list, spec_freq=spec_freq, char_types_and_freq=characters)
+    password = generate_password(master_pass=master_pass, site_name=site_name, char_map=char_map_dict, char_types=char_types_list, pass_length=pass_length, version=version, spec_mode=spec_mode, spec_chars=spec_chars_list, spec_freq=spec_freq, char_types_and_freq=characters, differentiator=None if differentiator == "" else differentiator)
 
     success_table = Table(box=box.SIMPLE_HEAD, show_edge=False)
     success_table.add_column("\nPassword Generation Successful!", justify="center")

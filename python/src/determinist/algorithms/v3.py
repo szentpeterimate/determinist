@@ -9,7 +9,7 @@ import re
 extra_chars = []
 
 
-def _construct_pass(argon2_output: bytes, charset_list: list, pass_length: int, min_chars: dict[str, int]) -> str:
+def _construct_pass(argon2_output: bytes, charset_list: list, pass_length: int, min_chars: dict[str, int], add_info: str | None) -> str:
     stream = BytesIO(b"")
     limit = 256 - (256 % len(charset_list))
     chunk_idx = 0
@@ -22,7 +22,7 @@ def _construct_pass(argon2_output: bytes, charset_list: list, pass_length: int, 
         if not byte_data:
             hkdf = HKDF(algorithm=hashes.SHA256(),
                         length=255,
-                        salt=None, 
+                        salt=add_info.encode() if add_info else None, 
                         info=f"generation-chunk-{chunk_idx}".encode()
                         )
 
@@ -63,7 +63,7 @@ def _construct_pass(argon2_output: bytes, charset_list: list, pass_length: int, 
 
     return password
     
-def generate(master_pass: str, site_name: str, pass_length: int, char_types: dict[str, int]) -> str:
+def generate(master_pass: str, site_name: str, pass_length: int, char_types: dict[str, int], add_info: str | None) -> str:
     types_set = set()
     for key, val in char_types.items():
         if val > 0:
@@ -94,7 +94,7 @@ def generate(master_pass: str, site_name: str, pass_length: int, char_types: dic
                                     type=Type.ID
                                 )
 
-    password = _construct_pass(argon2_output=hashed_bytes, charset_list=charset_list, pass_length=pass_length, min_chars=char_types)
+    password = _construct_pass(argon2_output=hashed_bytes, charset_list=charset_list, pass_length=pass_length, min_chars=char_types, add_info=add_info)
     
     password_to_shuffle = list(password)
 
