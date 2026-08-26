@@ -8,7 +8,6 @@ import re
 
 extra_chars = []
 
-
 def _construct_pass(argon2_output: bytes, charset_list: list, pass_length: int, min_chars: dict[str, int], add_info: str | None) -> str:
     stream = BytesIO(b"")
     limit = 256 - (256 % len(charset_list))
