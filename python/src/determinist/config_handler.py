@@ -171,3 +171,57 @@ class ConfigHandler:
                 tomli_w.dump(content, f)
         except Exception as e:
             print(f"[bold red]ERROR[/]: {e}")
+
+    def create_preset(self, name: str, file_name: str, description: str, default: bool, version: int, pass_length: int, char_map: dict, spec_chars: list, spec_mode: str, spec_freq: int, char_types: str, v3_types: dict, differentiator: str):
+        target_path = self.presets_path / f"{name.lower() if not file_name else file_name}.toml"
+
+        header = f"""
+            [preset]
+            name = "{name}"
+            description = "{description}"
+            is_default = {str(default).lower()}
+
+            [general]
+            version = {version}
+            pass_length = {pass_length}
+        """
+        header = inspect.cleandoc(header)
+
+        v1_text_base = f"""
+            [v1]
+            spec_mode = "{spec_mode}"
+        """
+        v1_text_base = inspect.cleandoc(v1_text_base)
+
+        v1_text_insert = f"""
+        spec_freq = {spec_freq}
+        spec_chars = "{spec_chars}"
+        """
+        v1_text_insert = inspect.cleandoc(v1_text_insert)
+
+        v1_text_replace = f"""
+        char_map = {char_map}
+        """
+        v1_text_replace = inspect.cleandoc(v1_text_replace)
+
+        v2_text = f"""
+            [v2]
+            char_types = "{char_types}"
+        """
+        v2_text = inspect.cleandoc(v2_text)
+
+        v3_text = f"""
+            [v3]
+            char_types = {v3_types}
+            differentiator = "{differentiator}"
+        """
+        v3_text = inspect.cleandoc(v3_text)
+
+        constructed_preset = header + "\n\n" + v1_text_base + "\n" + v1_text_replace if spec_mode == "replace" else header + "\n\n" + v1_text_base + "\n" + v1_text_insert if version == 1 else header + "\n\n" + v2_text if version == 2 else header + "\n\n" + v3_text
+        toml_preset = tomllib.loads(constructed_preset)
+
+        try:
+            with open(target_path, 'wb') as f:
+                tomli_w.dump(toml_preset, f)
+        except Exception as e:
+            print(f"[bold red]ERROR[/]: {e}")

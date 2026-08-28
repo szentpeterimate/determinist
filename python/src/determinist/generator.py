@@ -98,7 +98,6 @@ def generate_password_cli(ctx: typer.Context,
             spec_freq = content["v1"]["spec_freq"]
             spec_chars = content["v1"]["spec_chars"]
             char_map = content["v1"]["char_map"]
-
             char_types = content["v2"]["char_types"]
         else:
             pass
@@ -213,3 +212,31 @@ def set_default_preset(filename: Annotated[str, typer.Argument(help="Name of the
         print(f"Successfully set {filename} as default")
     except Exception as e:
         print(f"[bold red]ERROR[/]: {e}")
+
+@presets_app.command(name="create", help="Creates a new preset")
+def create_preset(name: Annotated[str, typer.Option("--preset-name", help="Name of the preset to be created")],
+                  file_name: Annotated[str | None, typer.Option("--file-name", help="The file name of the preset")] = None,
+                  description: Annotated[str | None, typer.Option("--desc", help="The description of the preset")] = None,
+                  default: Annotated[bool, typer.Option("--default" , "-d", help="Whether the preset should be set as default")] = False,
+                  version: Annotated[int, typer.Option("--version", "-v", min=1, max=LATEST_ALGORITHM, help="Algorithm version to use", rich_help_panel="General")] = LATEST_ALGORITHM, 
+                  pass_length: Annotated[int, typer.Option("--length", "-l", min=6, max=32, help="Length of the generated password", rich_help_panel="General")] = 8, 
+                  char_map: Annotated[str, typer.Option("--map", help="The character map used for swapping characters, enter in [bold]JSON[/] format inside a [bold]string[/]", rich_help_panel="Algorithm V1")] = "{}", 
+                  spec_chars: Annotated[str, typer.Option("--special", "-s", help="Special characters used for insertion", rich_help_panel="Algorithm V1")] = punctuation, 
+                  spec_mode: Annotated[Literal["replace", "insert"], typer.Option("--mode", "-m", help="The special character mode", rich_help_panel="Algorithm V1")] = "insert",
+                  spec_freq: Annotated[int, typer.Option("--frequency", "-f", help="Frequency of inserted special characters", rich_help_panel="Algorithm V1")] = 4, 
+                  char_types: Annotated[str, typer.Option("--chars", "-c", help="Character sets to use", rich_help_panel="Algorithm V2")] = "special,lowercase,uppercase,digits",
+                  lowercase: Annotated[int, typer.Option("--lowercase", "-L", help="Minimum required lowercase characters", rich_help_panel="Algorithm V3 (Use 0 to exclude character type)")] = 1,
+                  uppercase: Annotated[int, typer.Option("--uppercase", "-U", help="Minimum required uppercase characters", rich_help_panel="Algorithm V3 (Use 0 to exclude character type)")] = 1,
+                  digits: Annotated[int, typer.Option("--digits", "-D", help="Minimum required digits", rich_help_panel="Algorithm V3 (Use 0 to exclude character type)")] = 1,
+                  special: Annotated[int, typer.Option("--special-chars", "-S", help="Minimum required special characters", rich_help_panel="Algorithm V3 (Use 0 to exclude character type)")] = 1,
+                  differentiator: Annotated[str, typer.Option("--differentiator", "-d", help="Extra information to help differentiate passwords", rich_help_panel="Algorithm V3 (Use 0 to exclude character type)")] = None,
+                  ):
+
+    
+    char_map_dict = (
+        (char_map if isinstance(char_map, dict) else json.loads(char_map)) if char_map else None
+    )
+
+    characters = {"lowercase": lowercase, "uppercase": uppercase, "digits": digits, "special": special}
+
+    ch.create_preset(name=name, file_name=file_name, description=description, default=default, version=version, pass_length=pass_length, char_map=char_map_dict, spec_chars=spec_chars, spec_mode=spec_mode, spec_freq=spec_freq, char_types=char_types, v3_types=characters, differentiator=differentiator)
