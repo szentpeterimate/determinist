@@ -27,4 +27,4 @@ def generate(master_pass: str, site_name: str, pass_length: int, spec_mode: Lite
 
     final_password = chars_added[-pass_length:]
 
-    return final_password
+    return (final_password, True)

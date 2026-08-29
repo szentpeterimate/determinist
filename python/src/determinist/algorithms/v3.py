@@ -4,9 +4,8 @@ from random import Random
 from io import BytesIO
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+from rich import print
 import re
-
-extra_chars = []
 
 def _construct_pass(argon2_output: bytes, charset_list: list, pass_length: int, min_chars: dict[str, int], add_info: str | None) -> str:
     stream = BytesIO(b"")
@@ -62,7 +61,11 @@ def _construct_pass(argon2_output: bytes, charset_list: list, pass_length: int, 
 
     return password
     
-def generate(master_pass: str, site_name: str, pass_length: int, char_types: dict[str, int], add_info: str | None) -> str:
+def generate(master_pass: str, site_name: str, pass_length: int, char_types: dict[str, int], add_info: str | None) -> set:
+
+    if pass_length < sum(char_types.values()):
+        return ("Password length must always be more or equal to the sum of minimum required characters.", False)
+
     types_set = set()
     for key, val in char_types.items():
         if val > 0:
@@ -101,4 +104,4 @@ def generate(master_pass: str, site_name: str, pass_length: int, char_types: dic
 
     final = "".join(password_to_shuffle)
 
-    return final
+    return (final, True)

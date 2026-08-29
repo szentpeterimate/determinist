@@ -124,11 +124,15 @@ def generate_password_cli(ctx: typer.Context,
 
         password = generate_password(master_pass=master_pass, site_name=site_name, char_map=char_map_dict, char_types=char_types_list, pass_length=pass_length, version=version, spec_mode=spec_mode, spec_chars=spec_chars_list, spec_freq=spec_freq, char_types_and_freq=characters, differentiator=differentiator)
 
-        success_table = Table(box=box.SIMPLE_HEAD, show_edge=False)
-        success_table.add_column("\nPassword Generation Successful!", justify="center")
-        success_table.add_row(f"Password: [bold cyan]{password}[/]")
-
-        print(success_table)
+        result_table = Table(box=box.SIMPLE_HEAD, show_edge=False)
+        if password[1]:
+            result_table.add_column("\nPassword Generation Successful!", justify="center")
+            result_table.add_row(f"Password: [bold cyan]{password[0]}[/]")
+        else:
+            result_table.add_column("\nPassword Generation Failed!", justify="center")
+            result_table.add_row(f"Password: [bold red]{password[0]}[/]")
+            
+        print(result_table)
 
 @generate_app.command(name="prompt", help="Generate a password by prompting")
 def generate_password_prompt(master_pass: Annotated[str, typer.Option(prompt="Master pass", help="The master passphrase", rich_help_panel="Required", hide_input=True)], 
@@ -173,11 +177,15 @@ def generate_password_prompt(master_pass: Annotated[str, typer.Option(prompt="Ma
 
     password = generate_password(master_pass=master_pass, site_name=site_name, char_map=char_map_dict, char_types=char_types_list, pass_length=pass_length, version=version, spec_mode=spec_mode, spec_chars=spec_chars_list, spec_freq=spec_freq, char_types_and_freq=characters, differentiator=None if differentiator == "" else differentiator)
 
-    success_table = Table(box=box.SIMPLE_HEAD, show_edge=False)
-    success_table.add_column("\nPassword Generation Successful!", justify="center")
-    success_table.add_row(f"Password: [bold cyan]{password}[/]")
-
-    print(success_table)
+    result_table = Table(box=box.SIMPLE_HEAD, show_edge=False)
+    if password[1]:
+        result_table.add_column("\nPassword Generation Successful!", justify="center")
+        result_table.add_row(f"Password: [bold cyan]{password[0]}[/]")
+    else:
+        result_table.add_column("\nPassword Generation Failed!", justify="center")
+        result_table.add_row(f"[bold red]{password[0]}[/]")
+        
+    print(result_table)
 
 @presets_app.callback(invoke_without_command=True, help="Manage presets")
 def list_presets(ctx: typer.Context):
