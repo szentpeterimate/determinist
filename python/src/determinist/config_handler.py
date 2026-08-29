@@ -172,56 +172,61 @@ class ConfigHandler:
         except Exception as e:
             print(f"[bold red]ERROR[/]: {e}")
 
-    def create_preset(self, name: str, file_name: str, description: str, default: bool, version: int, pass_length: int, char_map: dict, spec_chars: list, spec_mode: str, spec_freq: int, char_types: str, v3_types: dict, differentiator: str):
-        target_path = self.presets_path / f"{name.lower() if not file_name else file_name}.toml"
+    def create_preset(self, name: str, description: str, default: bool, version: int, pass_length: int, char_map: dict, spec_chars: list, spec_mode: str, spec_freq: int, char_types: str, v3_types: dict, differentiator: str):
+        target_path = self.presets_path / f"{name.lower()}.toml"
+        current_default = self.get_default_path()
+        assert current_default is not None
 
-        header = f"""
-            [preset]
-            name = "{name}"
-            description = "{description}"
-            is_default = {str(default).lower()}
+        preset_dict = {
+            "preset": {
+                "name": name,
+                "description": description,
+                "is_default": default,
+            },
+            "general": {
+                "version": version,
+                "pass_length": pass_length,
+            }
+        }
 
-            [general]
-            version = {version}
-            pass_length = {pass_length}
-        """
-        header = inspect.cleandoc(header)
+        if version == 1:
+            if spec_mode == "insert":
+                preset_dict.update({
+                    "v1": {
+                        "spec_mode": spec_mode,
+                        "spec_freq": spec_freq,
+                        "spec_chars": spec_chars,
+                    }
+                })
+            elif spec_mode == "replace":
+                preset_dict.update({
+                    "v1": {
+                        "spec_mode": spec_mode,
+                        "char_map": char_map,
+                    }
+                })
+        elif version == 2:
+            preset_dict.update({
+                "v2": {
+                    "char_types": char_types,
+                }
+            })
+        elif version == 3:
+            preset_dict.update({
+                "v3": {
+                    "char_types": v3_types,
+                    "differentiator": differentiator if differentiator else "",
+                }
+            })
 
-        v1_text_base = f"""
-            [v1]
-            spec_mode = "{spec_mode}"
-        """
-        v1_text_base = inspect.cleandoc(v1_text_base)
+        if default:
+            with open(current_default, 'rb') as f:
+                content = tomllib.load(f)
 
-        v1_text_insert = f"""
-        spec_freq = {spec_freq}
-        spec_chars = "{spec_chars}"
-        """
-        v1_text_insert = inspect.cleandoc(v1_text_insert)
+            content["preset"]["is_default"] = False
 
-        v1_text_replace = f"""
-        char_map = {char_map}
-        """
-        v1_text_replace = inspect.cleandoc(v1_text_replace)
+            with open(current_default, 'wb') as f:
+                tomli_w.dump(content, f)
 
-        v2_text = f"""
-            [v2]
-            char_types = "{char_types}"
-        """
-        v2_text = inspect.cleandoc(v2_text)
-
-        v3_text = f"""
-            [v3]
-            char_types = {v3_types}
-            differentiator = "{differentiator}"
-        """
-        v3_text = inspect.cleandoc(v3_text)
-
-        constructed_preset = header + "\n\n" + v1_text_base + "\n" + v1_text_replace if spec_mode == "replace" else header + "\n\n" + v1_text_base + "\n" + v1_text_insert if version == 1 else header + "\n\n" + v2_text if version == 2 else header + "\n\n" + v3_text
-        toml_preset = tomllib.loads(constructed_preset)
-
-        try:
-            with open(target_path, 'wb') as f:
-                tomli_w.dump(toml_preset, f)
-        except Exception as e:
-            print(f"[bold red]ERROR[/]: {e}")
+        with open(target_path, 'wb') as f:
+            tomli_w.dump(preset_dict, f)
