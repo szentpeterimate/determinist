@@ -171,3 +171,62 @@ class ConfigHandler:
                 tomli_w.dump(content, f)
         except Exception as e:
             print(f"[bold red]ERROR[/]: {e}")
+
+    def create_preset(self, name: str, description: str, default: bool, version: int, pass_length: int, char_map: dict, spec_chars: list, spec_mode: str, spec_freq: int, char_types: str, v3_types: dict, differentiator: str):
+        target_path = self.presets_path / f"{name.lower()}.toml"
+        current_default = self.get_default_path()
+        assert current_default is not None
+
+        preset_dict = {
+            "preset": {
+                "name": name,
+                "description": description,
+                "is_default": default,
+            },
+            "general": {
+                "version": version,
+                "pass_length": pass_length,
+            }
+        }
+
+        if version == 1:
+            if spec_mode == "insert":
+                preset_dict.update({
+                    "v1": {
+                        "spec_mode": spec_mode,
+                        "spec_freq": spec_freq,
+                        "spec_chars": spec_chars,
+                    }
+                })
+            elif spec_mode == "replace":
+                preset_dict.update({
+                    "v1": {
+                        "spec_mode": spec_mode,
+                        "char_map": char_map,
+                    }
+                })
+        elif version == 2:
+            preset_dict.update({
+                "v2": {
+                    "char_types": char_types,
+                }
+            })
+        elif version == 3:
+            preset_dict.update({
+                "v3": {
+                    "char_types": v3_types,
+                    "differentiator": differentiator if differentiator else "",
+                }
+            })
+
+        if default:
+            with open(current_default, 'rb') as f:
+                content = tomllib.load(f)
+
+            content["preset"]["is_default"] = False
+
+            with open(current_default, 'wb') as f:
+                tomli_w.dump(content, f)
+
+        with open(target_path, 'wb') as f:
+            tomli_w.dump(preset_dict, f)

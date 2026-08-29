@@ -7,7 +7,6 @@ from string import punctuation
 from .algorithms import v1, v2, v3
 from rich import print, box
 from rich.table import Table
-from rich.prompt import Prompt
 from .config_handler import ConfigHandler
 from pathlib import Path
 from itertools import zip_longest
@@ -27,17 +26,20 @@ LATEST_ALGORITHM = 3
 
 def generate_password(master_pass: str, 
                       site_name: str, 
-                      char_map: dict[str, str] = {}, 
-                      spec_chars: list = list(punctuation), 
-                      version: int = LATEST_ALGORITHM, 
-                      pass_length: int = 8, 
-                      spec_mode: Literal["replace", "insert"] = "insert",
-                      spec_freq: int = 4, 
-                      char_types: list = ["special","lowercase","uppercase","digits"],
-                      char_types_and_freq: dict[str, int] = {"lowercase": 1, "uppercase": 1, "special": 1, "digits": 1},
-                      differentiator: str | None = None
+                      char_map: dict[str, str], 
+                      spec_chars: list, 
+                      version: int, 
+                      pass_length: int, 
+                      spec_mode: Literal["replace", "insert"],
+                      spec_freq: int, 
+                      char_types: list,
+                      char_types_and_freq: dict[str, int],
+                      differentiator: str | None
                      ) -> str:
     """Deterministically generates a password based on the inputs"""
+
+    if differentiator == "":
+        differentiator == None
     
     if version == 1:
         return v1.generate(master_pass=master_pass, site_name=site_name, pass_length=pass_length, spec_mode=spec_mode, spec_chars=spec_chars, char_map=char_map, spec_freq=spec_freq)
@@ -63,10 +65,10 @@ def version():
 def generate_password_cli(ctx: typer.Context,
                           master_pass: Annotated[Optional[str], typer.Option("--master", "-M", help="The master passphrase", rich_help_panel="Required")] = None,
                           site_name: Annotated[Optional[str], typer.Option("--site", "-n", help="The name of the website or any string", rich_help_panel="Required")] = None,
-                          use_preset: Annotated[bool, typer.Option("--preset", "-p", help="Use a preset flag", rich_help_panel="General")] = False,
+                          preset: Annotated[str | None, typer.Option("--preset", "-p", help="Name of the preset to use", rich_help_panel="General")] = None,
                           version: Annotated[int, typer.Option("--version", "-v", min=1, max=LATEST_ALGORITHM, help="Algorithm version to use", rich_help_panel="General")] = LATEST_ALGORITHM, 
                           pass_length: Annotated[int, typer.Option("--length", "-l", min=6, max=32, help="Length of the generated password", rich_help_panel="General")] = 8, 
-                          char_map: Annotated[str, typer.Option("--map", "-p", help="The character map used for swapping characters, enter in [bold]JSON[/] format inside a [bold]string[/]", rich_help_panel="Algorithm V1")] = "{}", 
+                          char_map: Annotated[str, typer.Option("--map", help="The character map used for swapping characters, enter in [bold]JSON[/] format inside a [bold]string[/]", rich_help_panel="Algorithm V1")] = "{}", 
                           spec_chars: Annotated[str, typer.Option("--special", "-s", help="Special characters used for insertion", rich_help_panel="Algorithm V1")] = punctuation, 
                           spec_mode: Annotated[Literal["replace", "insert"], typer.Option("--mode", "-m", help="The special character mode", rich_help_panel="Algorithm V1")] = "insert",
                           spec_freq: Annotated[int, typer.Option("--frequency", "-f", help="Frequency of inserted special characters", rich_help_panel="Algorithm V1")] = 4, 
@@ -86,20 +88,27 @@ def generate_password_cli(ctx: typer.Context,
             site_name = typer.prompt("Site name")
             assert site_name is not None
 
-        content = {}
-        if use_preset == True:
-            chosen_file = Prompt.ask("Select a file", choices=ch.get_files("name"), default=ch.get_files("default")[0])
-            content = ch.load_config(chosen_file.lower())
+        characters = {"lowercase": lowercase, "uppercase": uppercase, "digits": digits, "special": special}
 
-            version = content["general"]["version"]
-            pass_length = content["general"]["pass_length"]
+        if preset:
+            content = ch.load_config(preset.lower())
 
-            spec_mode = content["v1"]["spec_mode"]
-            spec_freq = content["v1"]["spec_freq"]
-            spec_chars = content["v1"]["spec_chars"]
-            char_map = content["v1"]["char_map"]
+            version = content["general"]["version"] if version == LATEST_ALGORITHM else version
+            pass_length = content["general"]["pass_length"] if pass_length == 8 else pass_length
 
-            char_types = content["v2"]["char_types"]
+            if version == 1:
+                spec_mode = content["v1"]["spec_mode"] if spec_mode == "insert" else spec_mode
+
+                if spec_mode == "insert":
+                    spec_freq = content["v1"]["spec_freq"] if spec_freq == 4 else spec_freq
+                    spec_chars = content["v1"]["spec_chars"] if spec_chars == punctuation else spec_chars
+                else:
+                    char_map = content["v1"]["char_map"] if char_map == "{}" else char_map
+            elif version == 2:
+                char_types = content["v2"]["char_types"] if char_types == "special,lowercase,uppercase,digits" else char_types
+            elif version == 3:
+                characters = content["v3"]["char_types"] if characters == {"lowercase": 1, "uppercase": 1, "digits": 1, "special": 1} else characters
+                differentiator = content["v3"]["differentiator"] if differentiator == None else differentiator
         else:
             pass
 
@@ -112,8 +121,6 @@ def generate_password_cli(ctx: typer.Context,
         char_types_list = (
             char_types if isinstance(char_types, list) else char_types.split(",")
         )
-
-        characters = {"lowercase": lowercase, "uppercase": uppercase, "digits": digits, "special": special}
 
         password = generate_password(master_pass=master_pass, site_name=site_name, char_map=char_map_dict, char_types=char_types_list, pass_length=pass_length, version=version, spec_mode=spec_mode, spec_chars=spec_chars_list, spec_freq=spec_freq, char_types_and_freq=characters, differentiator=differentiator)
 
@@ -190,7 +197,7 @@ def list_presets(ctx: typer.Context):
             
         print(preset_table)
 
-@presets_app.command(name="save", help="[bold green]Save[/] preset to config directory")
+@presets_app.command(name="save", help="[bold green]Saves[/] preset to config directory")
 def save_preset(path: Annotated[Path, typer.Argument(dir_okay=False, file_okay=True, exists=True, help="Path to the preset to install")]):
     try:
         ch.save_config(path)
@@ -198,7 +205,7 @@ def save_preset(path: Annotated[Path, typer.Argument(dir_okay=False, file_okay=T
     except Exception as e:
         print(f"[bold red]ERROR[/]: {e}")
 
-@presets_app.command(name="delete", help="[bold red]Permanently[/] deletes a preset")
+@presets_app.command(name="delete", help="Permanently [bold red]deletes[/] a preset")
 def delete_preset(file_name: Annotated[str, typer.Argument(help="Name of the preset to delete")], force: Annotated[bool, typer.Option("--force", "-f", help="Forces deletion of default preset")] = False):
     try:
         ch.delete_config(file_name, force)
@@ -206,10 +213,38 @@ def delete_preset(file_name: Annotated[str, typer.Argument(help="Name of the pre
     except Exception as e:
         print(f"[bold red]ERROR[/]: {e}")
 
-@presets_app.command(name="default", help="Sets a preset as [bold blue]default[/]")
+@presets_app.command(name="default", help="[bold blue]Sets[/] a preset as default")
 def set_default_preset(filename: Annotated[str, typer.Argument(help="Name of the preset to set as default")]):
     try:
         ch.set_default(filename)
         print(f"Successfully set {filename} as default")
     except Exception as e:
         print(f"[bold red]ERROR[/]: {e}")
+
+@presets_app.command(name="create", help="[bold cyan]Creates[/] a new preset (to edit a preset, use the same name with different options)")
+def create_preset(name: Annotated[str, typer.Option("--preset-name", help="Name of the preset to be created")],
+                  description: Annotated[str | None, typer.Option("--desc", help="The description of the preset")] = None,
+                  default: Annotated[bool, typer.Option("--default" , "-d", help="Whether the preset should be set as default")] = False,
+                  version: Annotated[int, typer.Option("--version", "-v", min=1, max=LATEST_ALGORITHM, help="Algorithm version to use", rich_help_panel="General")] = LATEST_ALGORITHM, 
+                  pass_length: Annotated[int, typer.Option("--length", "-l", min=6, max=32, help="Length of the generated password", rich_help_panel="General")] = 8, 
+                  char_map: Annotated[str, typer.Option("--map", help="The character map used for swapping characters, enter in [bold]JSON[/] format inside a [bold]string[/]", rich_help_panel="Algorithm V1")] = "{}", 
+                  spec_chars: Annotated[str, typer.Option("--special", "-s", help="Special characters used for insertion", rich_help_panel="Algorithm V1")] = punctuation, 
+                  spec_mode: Annotated[Literal["replace", "insert"], typer.Option("--mode", "-m", help="The special character mode", rich_help_panel="Algorithm V1")] = "insert",
+                  spec_freq: Annotated[int, typer.Option("--frequency", "-f", help="Frequency of inserted special characters", rich_help_panel="Algorithm V1")] = 4, 
+                  char_types: Annotated[str, typer.Option("--chars", "-c", help="Character sets to use", rich_help_panel="Algorithm V2")] = "special,lowercase,uppercase,digits",
+                  lowercase: Annotated[int, typer.Option("--lowercase", "-L", help="Minimum required lowercase characters", rich_help_panel="Algorithm V3 (Use 0 to exclude character type)")] = 1,
+                  uppercase: Annotated[int, typer.Option("--uppercase", "-U", help="Minimum required uppercase characters", rich_help_panel="Algorithm V3 (Use 0 to exclude character type)")] = 1,
+                  digits: Annotated[int, typer.Option("--digits", "-D", help="Minimum required digits", rich_help_panel="Algorithm V3 (Use 0 to exclude character type)")] = 1,
+                  special: Annotated[int, typer.Option("--special-chars", "-S", help="Minimum required special characters", rich_help_panel="Algorithm V3 (Use 0 to exclude character type)")] = 1,
+                  differentiator: Annotated[str, typer.Option("--differentiator", "-d", help="Extra information to help differentiate passwords", rich_help_panel="Algorithm V3 (Use 0 to exclude character type)")] = "",
+                  ):
+
+    
+    char_map_dict = (
+        (char_map if isinstance(char_map, dict) else json.loads(char_map)) if char_map else None
+    )
+
+    characters = {"lowercase": lowercase, "uppercase": uppercase, "digits": digits, "special": special}
+
+    ch.create_preset(name=name, description=description, default=default, version=version, pass_length=pass_length, char_map=char_map_dict, spec_chars=spec_chars, spec_mode=spec_mode, spec_freq=spec_freq, char_types=char_types, v3_types=characters, differentiator=differentiator)
+    
