@@ -56,7 +56,7 @@ def version():
 
     version_table = Table(box=box.MINIMAL_DOUBLE_HEAD)
     version_table.add_column(f"\nDeterminist [bold cyan]{__version__}[/]", justify="center")
-    version_table.add_row(f"Commit: [bold cyan]{__commit_id__}[/]")
+    version_table.add_row(f"Commit: [bold cyan]{__commit_id__[1:]}[/]")
     version_table.add_row(f"Python: [bold cyan]{python_version}[/]")
 
     print(version_table)
