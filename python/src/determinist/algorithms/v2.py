@@ -45,4 +45,4 @@ def generate(master_pass: str, site_name: str, pass_length: int, char_map: dict[
     random.shuffle(password_to_shuffle)
     final = "".join(password_to_shuffle)
 
-    return final
+    return (final, True)
