@@ -4,7 +4,7 @@ from platformdirs import user_config_dir
 import tomllib
 import tomli_w
 import inspect
-from .error_handler import DefaultConfigError, InvalidFileTypeError, ErrorHandler
+from .error_handler import DefaultConfigError, InvalidFileTypeError, MissingMetadataError, ErrorHandler
 
 eh = ErrorHandler()
 
@@ -98,10 +98,17 @@ class ConfigHandler:
     def save_config(self, file: Path) -> None:
             target_path = self.presets_path / file.name
             target_path = self.check_file_type(target_path)
-            try:
-                file.copy(target_path)
-            except Exception as e:
-                eh.print_error(e)
+
+            with open(file, 'rb') as f:
+                content = tomllib.load(f)
+
+            if "preset" in content:
+                try:
+                    file.copy(target_path)
+                except Exception as e:
+                    eh.print_error(e)
+            else:
+                raise MissingMetadataError(f"{file.name} is missing required metadata.")
 
     def load_config(self, file_name: str) -> dict:
         path = self.presets_path / file_name

@@ -7,6 +7,9 @@ class DefaultConfigError(Exception):
 class InvalidFileTypeError(Exception):
     pass
 
+class MissingMetadataError(Exception):
+    pass
+
 class ErrorHandler:
     def print_error(self, error: Exception | str) -> None:
             error_table = Table(box=box.SIMPLE_HEAD, show_edge=False)
