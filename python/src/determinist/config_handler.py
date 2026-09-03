@@ -75,17 +75,17 @@ class ConfigHandler:
                     return paths
                 case "name":                
                     for file in self.presets_path.iterdir():
-                        content = self.load_config(file.name)
+                        content = self.load_config(file)
                         details.append((content["preset"]["name"]))
                     return details
                 case "description":
                     for file in self.presets_path.iterdir():
-                            content = self.load_config(file.name)
+                            content = self.load_config(file)
                             details.append((content["preset"]["description"]))
                     return details
                 case "default":
                     for file in self.presets_path.iterdir():
-                        content = self.load_config(file.name)
+                        content = self.load_config(file)
 
                         if content["preset"]["is_default"]:
                             details.append(content["preset"]["name"])
