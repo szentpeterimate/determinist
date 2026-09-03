@@ -48,15 +48,12 @@ class ConfigHandler:
             except Exception as e:
                 eh.print_error(e)
 
-    def check_file_type(self, file: Path) -> Path:
+    def check_file_type(self, file: Path) -> None:
         if file.suffix == "":
-            file = self.presets_path / file.with_suffix(".toml")
+            file = file.with_suffix(".toml")
         elif file.suffix == ".toml":
             pass
         else:
-            if file.parent == self.presets_path:
-                raise InvalidFileTypeError(f"Wrong file type in presets directory: {file}. Only TOML files are allowed.")
-            
             raise InvalidFileTypeError(f"Cannot handle {file}: invalid file type. Only TOML files are allowed.")
 
         return file
@@ -96,8 +93,8 @@ class ConfigHandler:
 
 
     def save_config(self, file: Path) -> None:
+            self.check_file_type(file)
             target_path = self.presets_path / file.name
-            target_path = self.check_file_type(target_path)
 
             with open(file, 'rb') as f:
                 content = tomllib.load(f)
@@ -111,8 +108,8 @@ class ConfigHandler:
                 raise MissingMetadataError(f"{file.name} is missing required metadata.")
 
     def load_config(self, file_name: str) -> dict:
+        self.check_file_type(file_name)
         path = self.presets_path / file_name
-        path = self.check_file_type(path)
 
         try:
             with open(path, 'rb') as f:
@@ -121,8 +118,8 @@ class ConfigHandler:
             eh.print_error(e)
 
     def delete_config(self, file_name: str, force: bool) -> None:
+            self.check_file_type(file_name)
             target_path = self.presets_path / file_name
-            target_path = self.check_file_type(target_path)
             content = {}
 
             with open(target_path, 'rb') as f:
@@ -150,8 +147,8 @@ class ConfigHandler:
     )
 
     def set_default(self, file_name: str):
+        self.check_file_type(file_name)
         target_path = self.presets_path / file_name
-        target_path = self.check_file_type(target_path)
         current_default = self.get_default_path()
         assert current_default is not None
         
