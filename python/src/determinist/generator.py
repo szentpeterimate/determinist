@@ -11,6 +11,7 @@ from .config_handler import ConfigHandler
 from pathlib import Path
 from itertools import zip_longest
 from ._version import __commit_id__, __version__
+from .error_handler import ErrorHandler
 
 app = typer.Typer()
 
@@ -21,6 +22,7 @@ generate_app = typer.Typer()
 app.add_typer(generate_app, name="generate")
 
 ch = ConfigHandler()
+eh = ErrorHandler()
 
 LATEST_ALGORITHM = 3
 
@@ -128,11 +130,9 @@ def generate_password_cli(ctx: typer.Context,
         if password[1]:
             result_table.add_column("\nPassword Generation Successful!", justify="center")
             result_table.add_row(f"Password: [bold cyan]{password[0]}[/]")
+            print(result_table)
         else:
-            result_table.add_column("\nPassword Generation Failed!", justify="center")
-            result_table.add_row(f"Password: [bold red]{password[0]}[/]")
-            
-        print(result_table)
+            eh.print_error(password[0])
 
 @generate_app.command(name="prompt", help="Generate a password by prompting")
 def generate_password_prompt(master_pass: Annotated[str, typer.Option(prompt="Master pass", help="The master passphrase", rich_help_panel="Required", hide_input=True)], 
@@ -181,11 +181,10 @@ def generate_password_prompt(master_pass: Annotated[str, typer.Option(prompt="Ma
     if password[1]:
         result_table.add_column("\nPassword Generation Successful!", justify="center")
         result_table.add_row(f"Password: [bold cyan]{password[0]}[/]")
+        print(result_table)
     else:
-        result_table.add_column("\nPassword Generation Failed!", justify="center")
-        result_table.add_row(f"[bold red]{password[0]}[/]")
+        eh.print_error(password[0])
         
-    print(result_table)
 
 @presets_app.callback(invoke_without_command=True, help="Manage presets")
 def list_presets(ctx: typer.Context):
@@ -211,7 +210,7 @@ def save_preset(path: Annotated[Path, typer.Argument(dir_okay=False, file_okay=T
         ch.save_config(path)
         print(f"Successfully saved {path.name}")
     except Exception as e:
-        print(f"[bold red]ERROR[/]: {e}")
+        eh.print_error(e)
 
 @presets_app.command(name="delete", help="Permanently [bold red]deletes[/] a preset")
 def delete_preset(file_name: Annotated[str, typer.Argument(help="Name of the preset to delete")], force: Annotated[bool, typer.Option("--force", "-f", help="Forces deletion of default preset")] = False):
@@ -219,7 +218,7 @@ def delete_preset(file_name: Annotated[str, typer.Argument(help="Name of the pre
         ch.delete_config(file_name, force)
         print(f"Successfully deleted {file_name}")
     except Exception as e:
-        print(f"[bold red]ERROR[/]: {e}")
+        eh.print_error(e)
 
 @presets_app.command(name="default", help="[bold blue]Sets[/] a preset as default")
 def set_default_preset(filename: Annotated[str, typer.Argument(help="Name of the preset to set as default")]):
@@ -227,7 +226,7 @@ def set_default_preset(filename: Annotated[str, typer.Argument(help="Name of the
         ch.set_default(filename)
         print(f"Successfully set {filename} as default")
     except Exception as e:
-        print(f"[bold red]ERROR[/]: {e}")
+        eh.print_error(e)
 
 @presets_app.command(name="create", help="[bold cyan]Creates[/] a new preset (to edit a preset, use the same name with different options)")
 def create_preset(name: Annotated[str, typer.Option("--preset-name", help="Name of the preset to be created")],

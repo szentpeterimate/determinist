@@ -4,12 +4,9 @@ from platformdirs import user_config_dir
 import tomllib
 import tomli_w
 import inspect
+from .error_handler import DefaultConfigError, InvalidFileTypeError, ErrorHandler
 
-class DefaultConfigError(Exception):
-    pass
-
-class InvalidFileTypeError(Exception):
-    pass
+eh = ErrorHandler()
 
 class ConfigHandler:
     def __init__(self):
@@ -49,7 +46,7 @@ class ConfigHandler:
             try:
                 self.config_file.write_text(default_config, encoding="utf-8")
             except Exception as e:
-                print(f"[bold red]ERROR[/]: {e}")
+                eh.print_error(e)
 
     def check_file_type(self, file: Path) -> Path:
         if file.suffix == "":
@@ -104,7 +101,7 @@ class ConfigHandler:
             try:
                 file.copy(target_path)
             except Exception as e:
-                print(f"[bold red]ERROR[/]: {e}")
+                eh.print_error(e)
 
     def load_config(self, file_name: str) -> dict:
         path = self.presets_path / file_name
@@ -114,7 +111,7 @@ class ConfigHandler:
             with open(path, 'rb') as f:
                 return tomllib.load(f)
         except Exception as e:
-            print(f"[bold red]ERROR[/]: {e}")
+            eh.print_error(e)
 
     def delete_config(self, file_name: str, force: bool) -> None:
             target_path = self.presets_path / file_name
@@ -134,7 +131,7 @@ class ConfigHandler:
                     target_path.unlink(missing_ok=True)
                     print(f"Preset {file_name} deleted!")
                 except Exception as e:
-                    print(f"[bold red]ERROR[/]: {e}")
+                    eh.print_error(e)
                 
     def get_default_path(self) -> Path | None:
         default_name = self.get_files("default")
@@ -170,7 +167,7 @@ class ConfigHandler:
             with open(current_default, 'wb') as f:
                 tomli_w.dump(content, f)
         except Exception as e:
-            print(f"[bold red]ERROR[/]: {e}")
+            eh.print_error(e)
 
     def create_preset(self, name: str, description: str, default: bool, version: int, pass_length: int, char_map: dict, spec_chars: list, spec_mode: str, spec_freq: int, char_types: str, v3_types: dict, differentiator: str):
         target_path = self.presets_path / f"{name.lower()}.toml"
