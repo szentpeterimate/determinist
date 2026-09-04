@@ -190,8 +190,9 @@ def generate_password_prompt(master_pass: Annotated[str, typer.Option(prompt="Ma
 def list_presets(ctx: typer.Context):
     if ctx.invoked_subcommand == None:
         default_name = ch.get_files("default")
+        invalid_paths = ch.get_files('path')[1]
         default_name = default_name[0] if default_name else ""
-        details = {name: {"description": desc, "path": str(path), "is_default": (name == default_name)} for name, desc, path in zip_longest(ch.get_files("name"), ch.get_files("description"), ch.get_files("path"), fillvalue=None)}
+        details = {name: {"description": desc, "path": str(path), "is_default": (name == default_name)} for name, desc, path in zip_longest(ch.get_files("name"), ch.get_files("description"), ch.get_files("path")[0], fillvalue=None)}
     
         preset_table = Table(box=box.SIMPLE_HEAD, show_edge=False)
         preset_table.add_column("Preset")
@@ -200,7 +201,14 @@ def list_presets(ctx: typer.Context):
         preset_table.add_column("Default?")
 
         for i, j in details.items():
-            preset_table.add_row(i, j["description"], j["path"], str(j["is_default"]))
+            preset_table.add_row(f"[bold blue]{i}[/]", j["description"], j["path"], str(j["is_default"]))
+
+        if not any(invalid_paths):
+            pass
+        else:
+            for i in invalid_paths:
+                preset_table.add_row(f"[bold red]{i.name}[/]", "[bold red]Invalid file![/]", f"[bold red]{str(i)}[/]", "[bold red]---[/]")
+
             
         print(preset_table)
 

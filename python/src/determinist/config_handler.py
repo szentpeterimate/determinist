@@ -1,4 +1,5 @@
 from pathlib import Path
+from re import A
 from typing import Literal
 from platformdirs import user_config_dir
 import tomllib
@@ -48,43 +49,69 @@ class ConfigHandler:
             except Exception as e:
                 eh.print_error(e)
 
-    def check_file_type(self, file: Path) -> None:
+    def check_file_type(self, file: Path) -> bool | None:
         if file.suffix == "":
             file = file.with_suffix(".toml")
         elif file.suffix == ".toml":
-            pass
+            with open(file, 'rb') as f:
+                content = tomllib.load(f)
+
+            if "preset" in content:
+                return True
+            else:
+                if file.parent == self.presets_path:
+                    return False
+                raise MissingMetadataError(f"{file.name} is missing required metadata.")
         else:
+            if file.parent == self.presets_path:
+                return False
+            
             raise InvalidFileTypeError(f"Cannot handle {file}: invalid file type. Only TOML files are allowed.")
 
-        return file
+    def get_presets_content(self) -> set:
+        files = self.presets_path.iterdir()
+
+        presets = []
+        invalid = []
+        for file in files:
+            success = self.check_file_type(file)
+
+            if success:
+                presets.append(file)
+            else:
+                invalid.append(file)
+
+        return (presets, invalid)
 
     def get_files(self, mode: Literal["path", "name", "description", "default"]):
         """Returns various information about the presets"""
+        preset_dir_presets = self.get_presets_content()[0]
+        preset_dir_invalids = self.get_presets_content()[1]
         details = []
         content = {}
 
-        if not any(self.config_path.iterdir()):
+        if not any(preset_dir_presets):
             print("No presets found!")
         else:
             match mode:
                 case "path":
                     paths = []
-                    for file in self.presets_path.iterdir():
+                    for file in preset_dir_presets:
                         if file.is_file():
                             paths.append(file)
-                    return paths
+                    return (paths, preset_dir_invalids)
                 case "name":                
-                    for file in self.presets_path.iterdir():
+                    for file in preset_dir_presets:
                         content = self.load_config(file)
                         details.append((content["preset"]["name"]))
                     return details
                 case "description":
-                    for file in self.presets_path.iterdir():
+                    for file in preset_dir_presets:
                             content = self.load_config(file)
                             details.append((content["preset"]["description"]))
                     return details
                 case "default":
-                    for file in self.presets_path.iterdir():
+                    for file in preset_dir_presets:
                         content = self.load_config(file)
 
                         if content["preset"]["is_default"]:
@@ -93,13 +120,10 @@ class ConfigHandler:
 
 
     def save_config(self, file: Path) -> None:
-            self.check_file_type(file)
+            success = self.check_file_type(file)
             target_path = self.presets_path / file.name
 
-            with open(file, 'rb') as f:
-                content = tomllib.load(f)
-
-            if "preset" in content:
+            if success:
                 try:
                     file.copy(target_path)
                 except Exception as e:
