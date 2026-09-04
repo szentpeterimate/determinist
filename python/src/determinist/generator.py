@@ -28,15 +28,15 @@ LATEST_ALGORITHM = 3
 
 def generate_password(master_pass: str, 
                       site_name: str, 
-                      char_map: dict[str, str], 
-                      spec_chars: list, 
-                      version: int, 
-                      pass_length: int, 
-                      spec_mode: Literal["replace", "insert"],
-                      spec_freq: int, 
-                      char_types: list,
-                      char_types_and_freq: dict[str, int],
-                      differentiator: str | None
+                      char_map: dict[str, str] = {}, 
+                      spec_chars: list = punctuation, 
+                      version: int = LATEST_ALGORITHM, 
+                      pass_length: int = 8, 
+                      spec_mode: Literal["replace", "insert"] = "insert",
+                      spec_freq: int = 4, 
+                      char_types: list = ["special", "lowercase", "uppercase", "digits"],
+                      char_types_and_freq: dict[str, int] = {"special": 1, "lowercase": 1, "uppercase": 1, "digits": 1},
+                      differentiator: str | None = None
                      ) -> str:
     """Deterministically generates a password based on the inputs"""
 
