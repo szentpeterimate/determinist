@@ -3,7 +3,7 @@ from string import punctuation, ascii_lowercase, ascii_uppercase, digits
 from random import Random
 from io import BytesIO
 
-def generate(master_pass: str, site_name: str, pass_length: int, char_map: dict[str,str], char_types: list) -> str:
+def generate(master_pass: str, site_name: str, pass_length: int, char_map: dict[str,str], char_types: list) -> set:
     types_set = set(char_types)
     charset = ""
 

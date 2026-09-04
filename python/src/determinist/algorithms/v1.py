@@ -1,7 +1,7 @@
 from argon2.low_level import Type, hash_secret
 from typing import Literal
 
-def generate(master_pass: str, site_name: str, pass_length: int, spec_mode: Literal["replace", "insert"], char_map: dict[str, str], spec_chars: list, spec_freq: int) -> str:
+def generate(master_pass: str, site_name: str, pass_length: int, spec_mode: Literal["replace", "insert"], char_map: dict[str, str], spec_chars: list, spec_freq: int) -> set:
     hashed_str = hash_secret(secret=master_pass.encode('utf-8'),
                                 salt=site_name.encode('utf-8'),
                                 time_cost=2,

@@ -1,9 +1,4 @@
-from dataclasses import field
-from fileinput import filename
-from mimetypes import suffix_map
-from operator import is_
 from pathlib import Path
-from re import A
 from typing import Literal
 from platformdirs import user_config_dir
 import tomllib
@@ -21,7 +16,7 @@ class ConfigHandler:
 
         self._initial_config()
 
-    def _initial_config(self):
+    def _initial_config(self) -> None:
         is_first_run = not self.config_path.exists()
         self.presets_path.mkdir(parents=True, exist_ok=True)
 
@@ -53,7 +48,7 @@ class ConfigHandler:
             except Exception as e:
                 eh.print_error(e)
 
-    def check_file_type(self, file: Path) -> bool | None:
+    def check_file_type(self, file: Path) -> bool:
         if file.suffix == "":
             file = file.with_suffix(".toml")
         elif file.suffix == ".toml":
@@ -87,12 +82,11 @@ class ConfigHandler:
 
         return (presets, invalid)
 
-    def get_files(self, mode: Literal["path", "name", "description", "default"]):
+    def get_files(self, mode: Literal["path", "name", "description", "default"]) -> list:
         """Returns various information about the presets"""
         preset_dir_presets = self.get_presets_content()[0]
         preset_dir_invalids = self.get_presets_content()[1]
         details = []
-        content = {}
 
         if not any(preset_dir_presets):
             print("No presets found!")
@@ -174,7 +168,7 @@ class ConfigHandler:
             None
     )
 
-    def set_default(self, file_name: str):
+    def set_default(self, file_name: str) -> None:
         target_path = self.presets_path / file_name
         target_path = target_path if target_path.suffix == ".toml" else target_path.with_suffix(".toml") if target_path.suffix == "" else target_path
         is_preset = self.check_file_type(target_path)
@@ -205,7 +199,7 @@ class ConfigHandler:
         else:
             raise InvalidFileTypeError(f"Cannot set {file_name} as default: invalid file type. Only TOML files are allowed.")
 
-    def create_preset(self, name: str, description: str, default: bool, version: int, pass_length: int, char_map: dict, spec_chars: list, spec_mode: str, spec_freq: int, char_types: str, v3_types: dict, differentiator: str):
+    def create_preset(self, name: str, description: str, default: bool, version: int, pass_length: int, char_map: dict, spec_chars: list, spec_mode: str, spec_freq: int, char_types: str, v3_types: dict, differentiator: str) -> None:
         target_path = self.presets_path / f"{name.lower()}.toml"
         current_default = self.get_default_path()
         assert current_default is not None
