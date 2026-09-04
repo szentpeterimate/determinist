@@ -224,7 +224,7 @@ def save_preset(path: Annotated[Path, typer.Argument(dir_okay=False, file_okay=T
 def delete_preset(file_name: Annotated[str, typer.Argument(help="Name of the preset to delete")], force: Annotated[bool, typer.Option("--force", "-f", help="Forces deletion of default preset")] = False):
     try:
         ch.delete_config(file_name, force)
-        print(f"Successfully deleted {file_name}")
+        print(f"Successfully deleted {file_name}!")
     except Exception as e:
         eh.print_error(e)
 

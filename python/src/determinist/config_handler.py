@@ -1,3 +1,7 @@
+from dataclasses import field
+from fileinput import filename
+from mimetypes import suffix_map
+from operator import is_
 from pathlib import Path
 from re import A
 from typing import Literal
@@ -132,7 +136,6 @@ class ConfigHandler:
                 raise MissingMetadataError(f"{file.name} is missing required metadata.")
 
     def load_config(self, file_name: str) -> dict:
-        self.check_file_type(file_name)
         path = self.presets_path / file_name
 
         try:
@@ -142,60 +145,65 @@ class ConfigHandler:
             eh.print_error(e)
 
     def delete_config(self, file_name: str, force: bool) -> None:
-            self.check_file_type(file_name)
             target_path = self.presets_path / file_name
+            target_path = target_path if target_path.suffix == ".toml" else target_path.with_suffix(".toml") if target_path.suffix == "" else target_path
+            is_preset = self.check_file_type(target_path)
             content = {}
 
-            with open(target_path, 'rb') as f:
-                content = tomllib.load(f)
+            if is_preset:
+                with open(target_path, 'rb') as f:
+                    content = tomllib.load(f)
 
-            if content['preset']['is_default'] and force == False:
-                raise DefaultConfigError(
-                    f"Cannot delete '{target_path}' because it is set as the default configuration. "
-                    "Please set another preset as default first or use --force."
-                )
-            else:
-                try:
-                    target_path.unlink(missing_ok=True)
-                    print(f"Preset {file_name} deleted!")
-                except Exception as e:
-                    eh.print_error(e)
+                if content['preset']['is_default'] and force == False:
+                    raise DefaultConfigError(
+                        f"Cannot delete '{target_path}' because it is set as the default configuration. "
+                        "Please set another preset as default first or use --force."
+                    )
+                
+            try:
+                target_path.unlink(missing_ok=True)
+            except Exception as e:
+                eh.print_error(e)
                 
     def get_default_path(self) -> Path | None:
         default_name = self.get_files("default")
         default_name = default_name[0] if default_name else None
 
         return next(
-            (path for name, path in zip(self.get_files("name"), self.get_files("path")) if name == default_name),
+            (path for name, path in zip(self.get_files("name"), self.get_files("path")[0]) if name == default_name),
             None
     )
 
     def set_default(self, file_name: str):
-        self.check_file_type(file_name)
         target_path = self.presets_path / file_name
+        target_path = target_path if target_path.suffix == ".toml" else target_path.with_suffix(".toml") if target_path.suffix == "" else target_path
+        is_preset = self.check_file_type(target_path)
         current_default = self.get_default_path()
         assert current_default is not None
         
         content = {}
 
-        try:
-            with open(target_path, 'rb') as f:
-                content = tomllib.load(f)
+        if is_preset:
+            try:
+                with open(target_path, 'rb') as f:
+                    content = tomllib.load(f)
 
-            content["preset"]["is_default"] = True
+                content["preset"]["is_default"] = True
 
-            with open(target_path, 'wb') as f:
-                tomli_w.dump(content, f)
+                with open(target_path, 'wb') as f:
+                    tomli_w.dump(content, f)
 
-            with open(current_default, 'rb') as f:
-                content = tomllib.load(f)
+                with open(current_default, 'rb') as f:
+                    content = tomllib.load(f)
 
-            content["preset"]["is_default"] = False
+                content["preset"]["is_default"] = False
 
-            with open(current_default, 'wb') as f:
-                tomli_w.dump(content, f)
-        except Exception as e:
-            eh.print_error(e)
+                with open(current_default, 'wb') as f:
+                    tomli_w.dump(content, f)
+            except Exception as e:
+                eh.print_error(e)
+        else:
+            raise InvalidFileTypeError(f"Cannot set {file_name} as default: invalid file type. Only TOML files are allowed.")
 
     def create_preset(self, name: str, description: str, default: bool, version: int, pass_length: int, char_map: dict, spec_chars: list, spec_mode: str, spec_freq: int, char_types: str, v3_types: dict, differentiator: str):
         target_path = self.presets_path / f"{name.lower()}.toml"
