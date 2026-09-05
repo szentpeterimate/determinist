@@ -65,6 +65,8 @@ def generate(master_pass: str, site_name: str, pass_length: int, char_types: dic
 
     if pass_length < sum(char_types.values()):
         return ("Password length must always be more or equal to the sum of minimum required characters.", False)
+    if sum(char_types.values()) == 0:
+        return ("The password must have at least one type of character.", False)
 
     types_set = set()
     for key, val in char_types.items():

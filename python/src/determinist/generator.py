@@ -11,6 +11,7 @@ from .config_handler import ConfigHandler
 from pathlib import Path
 from itertools import zip_longest
 from ._version import __commit_id__, __version__
+from .error_handler import ErrorHandler
 
 app = typer.Typer()
 
@@ -21,20 +22,21 @@ generate_app = typer.Typer()
 app.add_typer(generate_app, name="generate")
 
 ch = ConfigHandler()
+eh = ErrorHandler()
 
 LATEST_ALGORITHM = 3
 
 def generate_password(master_pass: str, 
                       site_name: str, 
-                      char_map: dict[str, str], 
-                      spec_chars: list, 
-                      version: int, 
-                      pass_length: int, 
-                      spec_mode: Literal["replace", "insert"],
-                      spec_freq: int, 
-                      char_types: list,
-                      char_types_and_freq: dict[str, int],
-                      differentiator: str | None
+                      char_map: dict[str, str] = {}, 
+                      spec_chars: list = punctuation, 
+                      version: int = LATEST_ALGORITHM, 
+                      pass_length: int = 8, 
+                      spec_mode: Literal["replace", "insert"] = "insert",
+                      spec_freq: int = 4, 
+                      char_types: list = ["special", "lowercase", "uppercase", "digits"],
+                      char_types_and_freq: dict[str, int] = {"special": 1, "lowercase": 1, "uppercase": 1, "digits": 1},
+                      differentiator: str | None = None
                      ) -> str:
     """Deterministically generates a password based on the inputs"""
 
@@ -51,7 +53,7 @@ def generate_password(master_pass: str,
         raise ValueError(f"Unsupported algorithm version: {version}")
 
 @app.command(name="version", help="Display version info")
-def version():
+def version() -> None:
     python_version = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
 
     version_table = Table(box=box.MINIMAL_DOUBLE_HEAD)
@@ -78,7 +80,7 @@ def generate_password_cli(ctx: typer.Context,
                           digits: Annotated[int, typer.Option("--digits", "-D", help="Minimum required digits", rich_help_panel="Algorithm V3 (Use 0 to exclude character type)")] = 1,
                           special: Annotated[int, typer.Option("--special-chars", "-S", help="Minimum required special characters", rich_help_panel="Algorithm V3 (Use 0 to exclude character type)")] = 1,
                           differentiator: Annotated[str, typer.Option("--differentiator", "-d", help="Extra information to help differentiate passwords", rich_help_panel="Algorithm V3 (Use 0 to exclude character type)")] = None,
-                         ):
+                         ) -> None:
     
     if ctx.invoked_subcommand is None:
         if not master_pass:
@@ -128,11 +130,9 @@ def generate_password_cli(ctx: typer.Context,
         if password[1]:
             result_table.add_column("\nPassword Generation Successful!", justify="center")
             result_table.add_row(f"Password: [bold cyan]{password[0]}[/]")
+            print(result_table)
         else:
-            result_table.add_column("\nPassword Generation Failed!", justify="center")
-            result_table.add_row(f"Password: [bold red]{password[0]}[/]")
-            
-        print(result_table)
+            eh.print_error(password[0])
 
 @generate_app.command(name="prompt", help="Generate a password by prompting")
 def generate_password_prompt(master_pass: Annotated[str, typer.Option(prompt="Master pass", help="The master passphrase", rich_help_panel="Required", hide_input=True)], 
@@ -149,7 +149,7 @@ def generate_password_prompt(master_pass: Annotated[str, typer.Option(prompt="Ma
                              digits: Annotated[int, typer.Option(help="Minimum required digits", rich_help_panel="Algorithm V3 (Use 0 to exclude character type)")] = 1,
                              special: Annotated[int, typer.Option(help="Minimum required special characters", rich_help_panel="Algorithm V3 (Use 0 to exclude character type)")] = 1,
                              differentiator: Annotated[str, typer.Option(help="Extra information to help differentiate passwords", rich_help_panel="Algorithm V3 (Use 0 to exclude character type)")] = None,
-                            ):
+                            ) -> None:
 
     if version == 1:
         spec_mode = typer.prompt("Special character mode", default="insert", type=click.Choice(["replace", "insert"]), show_choices=True)
@@ -181,18 +181,18 @@ def generate_password_prompt(master_pass: Annotated[str, typer.Option(prompt="Ma
     if password[1]:
         result_table.add_column("\nPassword Generation Successful!", justify="center")
         result_table.add_row(f"Password: [bold cyan]{password[0]}[/]")
+        print(result_table)
     else:
-        result_table.add_column("\nPassword Generation Failed!", justify="center")
-        result_table.add_row(f"[bold red]{password[0]}[/]")
+        eh.print_error(password[0])
         
-    print(result_table)
 
 @presets_app.callback(invoke_without_command=True, help="Manage presets")
-def list_presets(ctx: typer.Context):
+def list_presets(ctx: typer.Context) -> None:
     if ctx.invoked_subcommand == None:
         default_name = ch.get_files("default")
+        invalid_paths = ch.get_files('path')[1]
         default_name = default_name[0] if default_name else ""
-        details = {name: {"description": desc, "path": str(path), "is_default": (name == default_name)} for name, desc, path in zip_longest(ch.get_files("name"), ch.get_files("description"), ch.get_files("path"), fillvalue=None)}
+        details = {name: {"description": desc, "path": str(path), "is_default": (name == default_name)} for name, desc, path in zip_longest(ch.get_files("name"), ch.get_files("description"), ch.get_files("path")[0], fillvalue=None)}
     
         preset_table = Table(box=box.SIMPLE_HEAD, show_edge=False)
         preset_table.add_column("Preset")
@@ -201,33 +201,40 @@ def list_presets(ctx: typer.Context):
         preset_table.add_column("Default?")
 
         for i, j in details.items():
-            preset_table.add_row(i, j["description"], j["path"], str(j["is_default"]))
+            preset_table.add_row(f"[bold blue]{i}[/]", j["description"], j["path"], str(j["is_default"]))
+
+        if not any(invalid_paths):
+            pass
+        else:
+            for i in invalid_paths:
+                preset_table.add_row(f"[bold red]{i.name}[/]", "[bold red]Invalid file![/]", f"[bold red]{str(i)}[/]", "[bold red]---[/]")
+
             
         print(preset_table)
 
 @presets_app.command(name="save", help="[bold green]Saves[/] preset to config directory")
-def save_preset(path: Annotated[Path, typer.Argument(dir_okay=False, file_okay=True, exists=True, help="Path to the preset to install")]):
+def save_preset(path: Annotated[Path, typer.Argument(dir_okay=False, file_okay=True, exists=True, help="Path to the preset to install")]) -> None:
     try:
         ch.save_config(path)
         print(f"Successfully saved {path.name}")
     except Exception as e:
-        print(f"[bold red]ERROR[/]: {e}")
+        eh.print_error(e)
 
 @presets_app.command(name="delete", help="Permanently [bold red]deletes[/] a preset")
-def delete_preset(file_name: Annotated[str, typer.Argument(help="Name of the preset to delete")], force: Annotated[bool, typer.Option("--force", "-f", help="Forces deletion of default preset")] = False):
+def delete_preset(file_name: Annotated[str, typer.Argument(help="Name of the preset to delete")], force: Annotated[bool, typer.Option("--force", "-f", help="Forces deletion of default preset")] = False) -> None:
     try:
         ch.delete_config(file_name, force)
-        print(f"Successfully deleted {file_name}")
+        print(f"Successfully deleted {file_name}!")
     except Exception as e:
-        print(f"[bold red]ERROR[/]: {e}")
+        eh.print_error(e)
 
 @presets_app.command(name="default", help="[bold blue]Sets[/] a preset as default")
-def set_default_preset(filename: Annotated[str, typer.Argument(help="Name of the preset to set as default")]):
+def set_default_preset(filename: Annotated[str, typer.Argument(help="Name of the preset to set as default")]) -> None:
     try:
         ch.set_default(filename)
         print(f"Successfully set {filename} as default")
     except Exception as e:
-        print(f"[bold red]ERROR[/]: {e}")
+        eh.print_error(e)
 
 @presets_app.command(name="create", help="[bold cyan]Creates[/] a new preset (to edit a preset, use the same name with different options)")
 def create_preset(name: Annotated[str, typer.Option("--preset-name", help="Name of the preset to be created")],
@@ -245,9 +252,8 @@ def create_preset(name: Annotated[str, typer.Option("--preset-name", help="Name 
                   digits: Annotated[int, typer.Option("--digits", "-D", help="Minimum required digits", rich_help_panel="Algorithm V3 (Use 0 to exclude character type)")] = 1,
                   special: Annotated[int, typer.Option("--special-chars", "-S", help="Minimum required special characters", rich_help_panel="Algorithm V3 (Use 0 to exclude character type)")] = 1,
                   differentiator: Annotated[str, typer.Option("--differentiator", "-d", help="Extra information to help differentiate passwords", rich_help_panel="Algorithm V3 (Use 0 to exclude character type)")] = "",
-                  ):
+                  ) -> None:
 
-    
     char_map_dict = (
         (char_map if isinstance(char_map, dict) else json.loads(char_map)) if char_map else None
     )
