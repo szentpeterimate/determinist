@@ -2,7 +2,7 @@
 name = "determinist"
 dynamic = ["version"]
 description = "A deterministic password generator"
-readme = "README.md"
+readme = "../README.md"
 requires-python = ">=3.14"
 dependencies = [
     "argon2-cffi>=25.1.0",
