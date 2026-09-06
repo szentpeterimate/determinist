@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { IoIosClose } from "react-icons/io";
+import { IoIosTrash } from "react-icons/io";
 const toml = require("toml")
 
 export default function PresetHandler({ onChange }) {
@@ -84,7 +84,7 @@ export default function PresetHandler({ onChange }) {
     }, [preset])
 
     return (
-        <div className="presets card flex flex-col items-center justify-center gap-2">
+        <div className="presets flex flex-col items-center justify-center gap-2">
             <div className="flex flex-row items-center gap-4">
                 <select
                     value={preset}
@@ -98,7 +98,7 @@ export default function PresetHandler({ onChange }) {
                     <option value="add">Add Preset</option>
                 </select>
                 {preset != "add" ?
-                    <button className="btn btn-remove" onClick={handleDelete}><IoIosClose size={24} /></button>
+                    <button className="btn btn-remove" onClick={handleDelete}><IoIosTrash size={24} /></button>
                 :
                     null
                 }

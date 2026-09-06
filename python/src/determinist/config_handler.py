@@ -4,12 +4,9 @@ from platformdirs import user_config_dir
 import tomllib
 import tomli_w
 import inspect
+from .error_handler import DefaultConfigError, InvalidFileTypeError, MissingMetadataError, ErrorHandler
 
-class DefaultConfigError(Exception):
-    pass
-
-class InvalidFileTypeError(Exception):
-    pass
+eh = ErrorHandler()
 
 class ConfigHandler:
     def __init__(self):
@@ -19,7 +16,7 @@ class ConfigHandler:
 
         self._initial_config()
 
-    def _initial_config(self):
+    def _initial_config(self) -> None:
         is_first_run = not self.config_path.exists()
         self.presets_path.mkdir(parents=True, exist_ok=True)
 
@@ -49,49 +46,71 @@ class ConfigHandler:
             try:
                 self.config_file.write_text(default_config, encoding="utf-8")
             except Exception as e:
-                print(f"[bold red]ERROR[/]: {e}")
+                eh.print_error(e)
 
-    def check_file_type(self, file: Path) -> Path:
+    def check_file_type(self, file: Path) -> bool:
         if file.suffix == "":
-            file = self.presets_path / file.with_suffix(".toml")
+            file = file.with_suffix(".toml")
         elif file.suffix == ".toml":
-            pass
+            with open(file, 'rb') as f:
+                content = tomllib.load(f)
+
+            if "preset" in content:
+                return True
+            else:
+                if file.parent == self.presets_path:
+                    return False
+                raise MissingMetadataError(f"{file.name} is missing required metadata.")
         else:
             if file.parent == self.presets_path:
-                raise InvalidFileTypeError(f"Wrong file type in presets directory: {file}. Only TOML files are allowed.")
+                return False
             
             raise InvalidFileTypeError(f"Cannot handle {file}: invalid file type. Only TOML files are allowed.")
 
-        return file
+    def get_presets_content(self) -> set:
+        files = self.presets_path.iterdir()
 
-    def get_files(self, mode: Literal["path", "name", "description", "default"]):
+        presets = []
+        invalid = []
+        for file in files:
+            success = self.check_file_type(file)
+
+            if success:
+                presets.append(file)
+            else:
+                invalid.append(file)
+
+        return (presets, invalid)
+
+    def get_files(self, mode: Literal["path", "name", "description", "default"]) -> list:
         """Returns various information about the presets"""
+        preset_dir_presets = self.get_presets_content()[0]
+        preset_dir_invalids = self.get_presets_content()[1]
         details = []
-        content = {}
 
-        if not any(self.config_path.iterdir()):
+        if not any(preset_dir_presets):
             print("No presets found!")
         else:
             match mode:
                 case "path":
                     paths = []
-                    for file in self.presets_path.iterdir():
+                    for file in preset_dir_presets:
                         if file.is_file():
                             paths.append(file)
-                    return paths
+                    return (paths, preset_dir_invalids)
                 case "name":                
-                    for file in self.presets_path.iterdir():
-                        content = self.load_config(file.name)
+                    for file in preset_dir_presets:
+                        content = self.load_config(file)
                         details.append((content["preset"]["name"]))
                     return details
                 case "description":
-                    for file in self.presets_path.iterdir():
-                            content = self.load_config(file.name)
+                    for file in preset_dir_presets:
+                            content = self.load_config(file)
                             details.append((content["preset"]["description"]))
                     return details
                 case "default":
-                    for file in self.presets_path.iterdir():
-                        content = self.load_config(file.name)
+                    for file in preset_dir_presets:
+                        content = self.load_config(file)
 
                         if content["preset"]["is_default"]:
                             details.append(content["preset"]["name"])
@@ -99,69 +118,135 @@ class ConfigHandler:
 
 
     def save_config(self, file: Path) -> None:
+            success = self.check_file_type(file)
             target_path = self.presets_path / file.name
-            target_path = self.check_file_type(target_path)
-            try:
-                file.copy(target_path)
-            except Exception as e:
-                print(f"[bold red]ERROR[/]: {e}")
+
+            if success:
+                try:
+                    file.copy(target_path)
+                except Exception as e:
+                    eh.print_error(e)
+            else:
+                raise MissingMetadataError(f"{file.name} is missing required metadata.")
 
     def load_config(self, file_name: str) -> dict:
         path = self.presets_path / file_name
-        path = self.check_file_type(path)
 
         try:
             with open(path, 'rb') as f:
                 return tomllib.load(f)
         except Exception as e:
-            print(f"[bold red]ERROR[/]: {e}")
+            eh.print_error(e)
 
     def delete_config(self, file_name: str, force: bool) -> None:
             target_path = self.presets_path / file_name
-            target_path = self.check_file_type(target_path)
+            target_path = target_path if target_path.suffix == ".toml" else target_path.with_suffix(".toml") if target_path.suffix == "" else target_path
+            is_preset = self.check_file_type(target_path)
             content = {}
 
-            with open(target_path, 'rb') as f:
-                content = tomllib.load(f)
+            if is_preset:
+                with open(target_path, 'rb') as f:
+                    content = tomllib.load(f)
 
-            if content['preset']['is_default'] and force == False:
-                raise DefaultConfigError(
-                    f"Cannot delete '{target_path}' because it is set as the default configuration. "
-                    "Please set another preset as default first or use --force."
-                )
-            else:
-                try:
-                    target_path.unlink(missing_ok=True)
-                    print(f"Preset {file_name} deleted!")
-                except Exception as e:
-                    print(f"[bold red]ERROR[/]: {e}")
+                if content['preset']['is_default'] and force == False:
+                    raise DefaultConfigError(
+                        f"Cannot delete '{target_path}' because it is set as the default configuration. "
+                        "Please set another preset as default first or use --force."
+                    )
+                
+            try:
+                target_path.unlink(missing_ok=True)
+            except Exception as e:
+                eh.print_error(e)
                 
     def get_default_path(self) -> Path | None:
         default_name = self.get_files("default")
         default_name = default_name[0] if default_name else None
 
         return next(
-            (path for name, path in zip(self.get_files("name"), self.get_files("path")) if name == default_name),
+            (path for name, path in zip(self.get_files("name"), self.get_files("path")[0]) if name == default_name),
             None
     )
 
-    def set_default(self, file_name: str):
+    def set_default(self, file_name: str) -> None:
         target_path = self.presets_path / file_name
-        target_path = self.check_file_type(target_path)
+        target_path = target_path if target_path.suffix == ".toml" else target_path.with_suffix(".toml") if target_path.suffix == "" else target_path
+        is_preset = self.check_file_type(target_path)
         current_default = self.get_default_path()
         assert current_default is not None
         
         content = {}
 
-        try:
-            with open(target_path, 'rb') as f:
-                content = tomllib.load(f)
+        if is_preset:
+            try:
+                with open(target_path, 'rb') as f:
+                    content = tomllib.load(f)
 
-            content["preset"]["is_default"] = True
+                content["preset"]["is_default"] = True
 
-            with open(target_path, 'wb') as f:
-                tomli_w.dump(content, f)
+                with open(target_path, 'wb') as f:
+                    tomli_w.dump(content, f)
 
+                with open(current_default, 'rb') as f:
+                    content = tomllib.load(f)
+
+                content["preset"]["is_default"] = False
+
+                with open(current_default, 'wb') as f:
+                    tomli_w.dump(content, f)
+            except Exception as e:
+                eh.print_error(e)
+        else:
+            raise InvalidFileTypeError(f"Cannot set {file_name} as default: invalid file type. Only TOML files are allowed.")
+
+    def create_preset(self, name: str, description: str, default: bool, version: int, pass_length: int, char_map: dict, spec_chars: list, spec_mode: str, spec_freq: int, char_types: str, v3_types: dict, differentiator: str) -> None:
+        target_path = self.presets_path / f"{name.lower()}.toml"
+        current_default = self.get_default_path()
+        assert current_default is not None
+
+        preset_dict = {
+            "preset": {
+                "name": name,
+                "description": description,
+                "is_default": default,
+            },
+            "general": {
+                "version": version,
+                "pass_length": pass_length,
+            }
+        }
+
+        if version == 1:
+            if spec_mode == "insert":
+                preset_dict.update({
+                    "v1": {
+                        "spec_mode": spec_mode,
+                        "spec_freq": spec_freq,
+                        "spec_chars": spec_chars,
+                    }
+                })
+            elif spec_mode == "replace":
+                preset_dict.update({
+                    "v1": {
+                        "spec_mode": spec_mode,
+                        "char_map": char_map,
+                    }
+                })
+        elif version == 2:
+            preset_dict.update({
+                "v2": {
+                    "char_types": char_types,
+                }
+            })
+        elif version == 3:
+            preset_dict.update({
+                "v3": {
+                    "char_types": v3_types,
+                    "differentiator": differentiator if differentiator else "",
+                }
+            })
+
+        if default:
             with open(current_default, 'rb') as f:
                 content = tomllib.load(f)
 
@@ -169,5 +254,6 @@ class ConfigHandler:
 
             with open(current_default, 'wb') as f:
                 tomli_w.dump(content, f)
-        except Exception as e:
-            print(f"[bold red]ERROR[/]: {e}")
+
+        with open(target_path, 'wb') as f:
+            tomli_w.dump(preset_dict, f)
