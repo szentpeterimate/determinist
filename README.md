@@ -41,7 +41,7 @@ Determinist takes your inputs and passes them to the chosen algorithm. In case o
 
 The algorithm then turns the settings into a string that Argon2 uses as the salt to then deterministically hash the provided master password. This string of settings is also used as the random seed for shuffling character sets and the final password.
 
-You can read more about how the individual algorithms work [here](/PROCESS.md).
+You can read more about how the individual algorithms work [here](https://github.com/szentpeterimate/determinist/blob/main/docs/PROCESS.md).
 
 ## Installation
 ### pipx (Recommended):
@@ -96,7 +96,7 @@ Just enter your master password, the name of the site you'd like to generate a p
 
 ## Examples
 1. Using `generate`:
-<img src="/media/demo_generate.gif"></img>
+<img src="https://github.com/szentpeterimate/determinist/blob/main/docs/demos/demo_generate.gif"></img>
 
 2. Using `prompt`:
-<img src="/media/demo_prompt.gif"></img>
+<img src="https://github.com/szentpeterimate/determinist/blob/main/docs/demos/demo_prompt.gif"></img>
