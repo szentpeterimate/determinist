@@ -94,25 +94,25 @@ def generate_password_cli(ctx: typer.Context,
 
         if preset:
             content = ch.load_config(preset.lower())
-
-            version = content["general"]["version"] if version == LATEST_ALGORITHM else version
-            pass_length = content["general"]["pass_length"] if pass_length == 8 else pass_length
-
-            if version == 1:
-                spec_mode = content["v1"]["spec_mode"] if spec_mode == "insert" else spec_mode
-
-                if spec_mode == "insert":
-                    spec_freq = content["v1"]["spec_freq"] if spec_freq == 4 else spec_freq
-                    spec_chars = content["v1"]["spec_chars"] if spec_chars == punctuation else spec_chars
-                else:
-                    char_map = content["v1"]["char_map"] if char_map == "{}" else char_map
-            elif version == 2:
-                char_types = content["v2"]["char_types"] if char_types == "special,lowercase,uppercase,digits" else char_types
-            elif version == 3:
-                characters = content["v3"]["char_types"] if characters == {"lowercase": 1, "uppercase": 1, "digits": 1, "special": 1} else characters
-                differentiator = content["v3"]["differentiator"] if differentiator == None else differentiator
         else:
-            pass
+            content = ch.load_config(ch.get_default_path().name)
+
+        version = content["general"]["version"] if version == LATEST_ALGORITHM else version
+        pass_length = content["general"]["pass_length"] if pass_length == 8 else pass_length
+
+        if version == 1:
+            spec_mode = content["v1"]["spec_mode"] if spec_mode == "insert" else spec_mode
+
+            if spec_mode == "insert":
+                spec_freq = content["v1"]["spec_freq"] if spec_freq == 4 else spec_freq
+                spec_chars = content["v1"]["spec_chars"] if spec_chars == punctuation else spec_chars
+            else:
+                char_map = content["v1"]["char_map"] if char_map == "{}" else char_map
+        elif version == 2:
+            char_types = content["v2"]["char_types"] if char_types == "special,lowercase,uppercase,digits" else char_types
+        elif version == 3:
+            characters = content["v3"]["char_types"] if characters == {"lowercase": 1, "uppercase": 1, "digits": 1, "special": 1} else characters
+            differentiator = content["v3"]["differentiator"] if differentiator == None else differentiator
 
         char_map_dict = (
             char_map if isinstance(char_map, dict) else json.loads(char_map)
@@ -189,34 +189,37 @@ def generate_password_prompt(master_pass: Annotated[str, typer.Option(prompt="Ma
 @presets_app.callback(invoke_without_command=True, help="Manage presets")
 def list_presets(ctx: typer.Context) -> None:
     if ctx.invoked_subcommand == None:
-        default_name = ch.get_files("default")
-        invalid_paths = ch.get_files('path')[1]
-        default_name = default_name[0] if default_name else ""
-        details = {name: {"description": desc, "path": str(path), "is_default": (name == default_name)} for name, desc, path in zip_longest(ch.get_files("name"), ch.get_files("description"), ch.get_files("path")[0], fillvalue=None)}
+        if any(ch.get_files()):
+            default_name = ch.get_files("default")
+            invalid_paths = ch.get_files('path')[1]
+            default_name = default_name[0] if default_name else ""
+            details = {name: {"description": desc, "path": str(path), "is_default": (name == default_name)} for name, desc, path in zip_longest(ch.get_files("name"), ch.get_files("description"), ch.get_files("path")[0], fillvalue=None)}
+        
+            preset_table = Table(box=box.SIMPLE_HEAD, show_edge=False)
+            preset_table.add_column("Preset")
+            preset_table.add_column("Description")
+            preset_table.add_column("Path")
+            preset_table.add_column("Default?")
     
-        preset_table = Table(box=box.SIMPLE_HEAD, show_edge=False)
-        preset_table.add_column("Preset")
-        preset_table.add_column("Description")
-        preset_table.add_column("Path")
-        preset_table.add_column("Default?")
-
-        for i, j in details.items():
-            preset_table.add_row(f"[bold blue]{i}[/]", j["description"], j["path"], str(j["is_default"]))
-
-        if not any(invalid_paths):
-            pass
+            for i, j in details.items():
+                preset_table.add_row(f"[bold blue]{i}[/]", j["description"], j["path"], str(j["is_default"]))
+    
+            if not any(invalid_paths):
+                pass
+            else:
+                for i in invalid_paths:
+                    preset_table.add_row(f"[bold red]{i.name}[/]", "[bold red]Invalid file![/]", f"[bold red]{str(i)}[/]", "[bold red]---[/]")
+    
+                
+            print(preset_table)
         else:
-            for i in invalid_paths:
-                preset_table.add_row(f"[bold red]{i.name}[/]", "[bold red]Invalid file![/]", f"[bold red]{str(i)}[/]", "[bold red]---[/]")
-
-            
-        print(preset_table)
+            eh.print_error("No presets found in the config directory!")
 
 @presets_app.command(name="save", help="[bold green]Saves[/] preset to config directory")
 def save_preset(path: Annotated[Path, typer.Argument(dir_okay=False, file_okay=True, exists=True, help="Path to the preset to install")]) -> None:
     try:
         ch.save_config(path)
-        print(f"Successfully saved {path.name}")
+        print(f"Successfully saved {path.name} to the config directory!")
     except Exception as e:
         eh.print_error(e)
 
@@ -232,7 +235,7 @@ def delete_preset(file_name: Annotated[str, typer.Argument(help="Name of the pre
 def set_default_preset(filename: Annotated[str, typer.Argument(help="Name of the preset to set as default")]) -> None:
     try:
         ch.set_default(filename)
-        print(f"Successfully set {filename} as default")
+        print(f"Successfully set {filename} as the default preset!")
     except Exception as e:
         eh.print_error(e)
 
