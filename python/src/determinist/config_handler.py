@@ -82,14 +82,14 @@ class ConfigHandler:
 
         return (presets, invalid)
 
-    def get_files(self, mode: Literal["path", "name", "description", "default"]) -> list:
+    def get_files(self, mode: Literal["path", "name", "description", "default"] = "path") -> list:
         """Returns various information about the presets"""
         preset_dir_presets = self.get_presets_content()[0]
         preset_dir_invalids = self.get_presets_content()[1]
         details = []
 
         if not any(preset_dir_presets):
-            print("No presets found!")
+            return []
         else:
             match mode:
                 case "path":
@@ -131,6 +131,7 @@ class ConfigHandler:
 
     def load_config(self, file_name: str) -> dict:
         path = self.presets_path / file_name
+        path = path if path.suffix == ".toml" else path.with_suffix(".toml") if path.suffix == "" else path
 
         try:
             with open(path, 'rb') as f:
@@ -173,7 +174,6 @@ class ConfigHandler:
         target_path = target_path if target_path.suffix == ".toml" else target_path.with_suffix(".toml") if target_path.suffix == "" else target_path
         is_preset = self.check_file_type(target_path)
         current_default = self.get_default_path()
-        assert current_default is not None
         
         content = {}
 
@@ -187,13 +187,16 @@ class ConfigHandler:
                 with open(target_path, 'wb') as f:
                     tomli_w.dump(content, f)
 
-                with open(current_default, 'rb') as f:
-                    content = tomllib.load(f)
-
-                content["preset"]["is_default"] = False
-
-                with open(current_default, 'wb') as f:
-                    tomli_w.dump(content, f)
+                if current_default:
+                    with open(current_default, 'rb') as f:
+                        content = tomllib.load(f)
+    
+                    content["preset"]["is_default"] = False
+    
+                    with open(current_default, 'wb') as f:
+                        tomli_w.dump(content, f)
+                else:
+                    print("No default configuration found, skipping overwrite...")
             except Exception as e:
                 eh.print_error(e)
         else:
