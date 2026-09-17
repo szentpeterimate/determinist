@@ -3,9 +3,10 @@
 import argon2 from 'argon2-browser/dist/argon2-bundled.min.js'
 import CharMapInput from './charmapinput';
 import CharSetInput from './charsetinput';
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { PythonRandom } from './python-random'
 import PresetHandler from './presethandler';
+import GenError from './generror';
 
 const encoder = new TextEncoder()
 const punctuation = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~"
@@ -17,14 +18,16 @@ export default function Generator() {
     const [masterpass, setMasterpass] = useState("")
     const [sitename, setSitename] = useState("")
     const [passlength, setPassLength] = useState(8)
-    const [version, setVersion] = useState(2)
+    const [version, setVersion] = useState(3)
     const [specmode, setSpecMode] = useState("insert")
     const [charmap, setCharMap] = useState({})
     const [specchars, setSpecChars] = useState(punctuation)
     const [specfreq, setSpecFreq] = useState(4)
     const [charset, setCharSet] = useState(["lowercase", "uppercase", "digits", "special"])
+    const [charsetV3, setCharSetV3] = useState({"lowercase": 1, "uppercase": 1, "digits": 1, "special": 1})
     const [hash, setHash] = useState("")
-    const [error, setError] = useState(false)
+    const [error, setError] = useState("")
+    const [differentiator, setDifferentiator] = useState(undefined)
 
     function handlePresets(presetData) {
 
@@ -128,14 +131,150 @@ export default function Generator() {
         return final
     }
 
+    async function constructV3Pass(argon2Output, charsetList, passLength, minChars, addInfo = null) {
+        let stream = new Uint8Array(0)
+        let streamOffset = 0
+        const limit = 256 - (256 % charsetList.length)
+        let chunkIdx = 0
+
+        let password = ""
+
+        const countTypes = (str, regex) => (str.match(regex) || []).length
+        const regexes = {
+            lowercase: /[a-z]/g,
+            uppercase: /[A-Z]/g,
+            digits: /[0-9]/g,
+            special: /[^a-zA-Z0-9]/g
+        }
+
+        const importedKey = await crypto.subtle.importKey(
+            "raw",
+            argon2Output,
+            { name: "HKDF" },
+            false,
+            ["deriveBits"]
+        )
+
+        while (password.length < passLength) {
+            if (streamOffset >= stream.length) {
+                const hkdf = await crypto.subtle.deriveBits({
+                        name: "HKDF",
+                        hash: "SHA-256",
+                        salt: addInfo ? encoder.encode(addInfo) : new Uint8Array(0),
+                        info: encoder.encode(`generation-chunk-${chunkIdx}`)
+                    }, 
+                    importedKey,
+                    255 * 8
+                )
+
+                stream = new Uint8Array(hkdf)
+                streamOffset = 0
+                chunkIdx += 1
+            }
+
+            const byte = stream[streamOffset++]
+
+            if (byte < limit) {
+                const char = charsetList[byte % charsetList.length]
+
+                let charType = "special"
+                if (asciiLowercase.includes(char)) charType = "lowercase"
+                else if (asciiUppercase.includes(char)) charType = "uppercase"
+                else if (digits.includes(char)) charType = "digits"
+                
+                const typeCount = countTypes(password, regexes[charType])
+                const needed = typeCount < (minChars[charType] || 0)
+
+                if (needed) {
+                    password += char
+                } else {
+                    let missingTotal = 0
+                    for (const type in minChars) {
+                        const curr = countTypes(password, regexes[type])
+                        missingTotal += Math.max(0, minChars[type] - curr)
+                    }
+
+                    const slotsRemaining = passLength - password.length
+
+                    if (slotsRemaining > missingTotal) {
+                        password += char
+                    }
+                }
+            }
+        }
+
+        return password
+    }
+
+    async function v3(masterPass, siteName, passLength = 8, charTypes = {"digits": 1, "special": 1, "lowercase": 1, "uppercase": 1}, add_info = null) {
+        const charTypesStr = "{" + Object.entries(charTypes).map(([key, val]) => `'${key}': ${val}`).join(', ') + "}";
+
+        const typesSet = new Set()
+        for (const [charType, amount] of Object.entries(charTypes)) {
+            if (amount > 0) {
+                typesSet.add(charType)
+            }
+        }
+
+        const salt = masterPass + siteName + String(passLength) + charTypesStr
+
+        const rng = new PythonRandom(salt)
+
+        let charSet = ""
+        if (typesSet.has("special")) {
+            charSet += punctuation
+        }
+        if (typesSet.has("lowercase")) {
+            charSet += asciiLowercase
+        }
+        if (typesSet.has("uppercase")) {
+            charSet += asciiUppercase
+        }
+        if (typesSet.has("digits")) {
+            charSet += digits
+        }       
+        const charSetList = rng.shuffle(charSet.split(''))
+
+        const hashedBytes = await argon2.hash({
+            pass: encoder.encode(masterPass),
+            salt: encoder.encode(salt),
+            time: 2,
+            mem: 65536,
+            parallelism: 4,
+            hashLen: 32,
+            type: argon2.ArgonType.Argon2id
+        })
+
+        const password = (await constructV3Pass(hashedBytes.hash, charSetList, passLength, charTypes, add_info)).split('')
+        const shuffledPass = rng.shuffle(password)
+        const final = shuffledPass.join('')
+
+        return final
+    }
+
     async function handleGenerate(e) {
         e.preventDefault()
 
         if (charset.length == 0) {
-            setError(true)
+            setError("no_types")
             return
         } else {
-            setError(false)
+            setError("")
+        }
+
+        let totalLength = Object.values(charsetV3).reduce((sum, value) => sum + value, 0)
+        if (passlength < totalLength) {
+            setError("sum_len")
+            return
+        } else {
+            setError("")
+        }
+
+        if (totalLength == 0) {
+            setError("no_types")
+            return
+        } else {
+            setError("")
         }
 
         let result = ""
@@ -144,6 +283,8 @@ export default function Generator() {
             result = await v1(masterpass, sitename, passlength, specmode, charmap, specchars, specfreq)
         } else if (version == 2) {
             result = await v2(masterpass, sitename, passlength, charset)
+        } else if (version == 3) {
+            result = await v3(masterpass, sitename, passlength, charsetV3, differentiator)
         }
 
         setHash(result)
@@ -192,6 +333,7 @@ export default function Generator() {
                                     >
                                         <option value={1}>1</option>
                                         <option value={2}>2</option>
+                                        <option value={3}>3</option>
                                     </select>
                                 </div>
                                 <label className='w-full'>Password Length</label>
@@ -270,11 +412,27 @@ export default function Generator() {
                                     </div>
                                 </div> 
                             : version == 2 ?
-                                <CharSetInput charSet={charset} onChange={(sets) => {setCharSet(sets)} } />
+                                <CharSetInput charSet={charset} version={version} onChange={(sets) => {version == 2 ? setCharSet(sets) : setCharSetV3(sets)} } />
+                            : version == 3 ?
+                                <div className="">
+                                    <CharSetInput charSet={charset} version={version} onChange={(sets) => {version == 2 ? setCharSet(sets) : setCharSetV3(sets)} } />
+                                    <label className='flex flex-row justify-center'>
+                                        Differentiator
+                                        <input 
+                                            className='differentiator text-base font-normal'
+                                            type="text" 
+                                            name='differentiator' 
+                                            value={differentiator}
+                                            onChange={(e) => {if (e.target.value.trim() !== "") {setDifferentiator(e.target.value)} else setDifferentiator(undefined)}}
+                                            autoComplete='off'
+                                            required={false}
+                                        />
+                                    </label>
+                                </div>
                             :
                                 null
                             }
-                            { error ? <p className='text-red-500 mt-4'>At least one type of character must be selected</p> : null}
+                            <GenError version={version} error={error}></GenError>
                         </div>
                         <PresetHandler onChange={(presetText) => handlePresets(presetText)}/>
                         <div className="w-full h-full grid place-items-center">
