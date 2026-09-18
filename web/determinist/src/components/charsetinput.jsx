@@ -2,11 +2,15 @@
 
 import { useEffect, useState } from "react"
 
-export default function CharSetInput({ charSet, version, onChange }) {
+export default function CharSetInput({ charSet, defCharSetV3, version, onChange }) {
     const [selectedSets, setSelectedSets] = useState(charSet)
-    const [charSetV3, setCharSetV3] = useState({"lowercase": 1, "uppercase": 1, "digits": 1, "special": 1})
+    const [charSetV3, setCharSetV3] = useState(defCharSetV3)
 
     if (version == 3) {
+        useEffect(() => {
+            setSelectedSets(Object.keys(charSetV3))
+            setCharSetV3(defCharSetV3)
+        }, [charSet])
         useEffect(() => {
             onChange(charSetV3)
         }, [charSetV3])

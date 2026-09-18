@@ -30,17 +30,23 @@ export default function Generator() {
     const [differentiator, setDifferentiator] = useState(undefined)
 
     function handlePresets(presetData) {
-
         setVersion(presetData.general.version)
         setPassLength(presetData.general.pass_length)
 
         if (presetData.general.version == 1) {
-            setSpecChars(presetData.v1.spec_chars)
-            setSpecFreq(presetData.v1.spec_freq)
             setSpecMode(presetData.v1.spec_mode)
-            setCharMap(presetData.v1.char_map)
+            if (presetData.v1.spec_mode == "insert") {
+                setSpecChars(presetData.v1.spec_chars)
+                setSpecFreq(presetData.v1.spec_freq)
+            } else {
+                setCharMap(presetData.v1.char_map)
+            }
         } else if (presetData.general.version == 2) {
             setCharSet(presetData.v2.char_types)
+        } else if (presetData.general.version == 3) {
+            setCharSet(Object.keys(presetData.v3.char_types))
+            setCharSetV3(presetData.v3.char_types)
+            setDifferentiator(presetData.v3.differentiator)
         }
     }
 
@@ -415,7 +421,7 @@ export default function Generator() {
                                 <CharSetInput charSet={charset} version={version} onChange={(sets) => {version == 2 ? setCharSet(sets) : setCharSetV3(sets)} } />
                             : version == 3 ?
                                 <div className="">
-                                    <CharSetInput charSet={charset} version={version} onChange={(sets) => {version == 2 ? setCharSet(sets) : setCharSetV3(sets)} } />
+                                    <CharSetInput charSet={charset} defCharSetV3={charsetV3} version={version} onChange={(sets) => {version == 2 ? setCharSet(sets) : setCharSetV3(sets)} } />
                                     <label className='flex flex-row justify-center'>
                                         Differentiator
                                         <input 
