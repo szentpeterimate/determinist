@@ -1,9 +1,6 @@
 @import "tailwindcss";
 
 @theme {
-    --font-display: "Schibsted Grotesk";
-    --font-logo: "Slabo 13px";
-
     --color-background: #161721;
     --color-complimentary: #4EA699;
     --color-accent: #9F8DD5;
@@ -18,6 +15,10 @@ body {
 
 .diff {
     all: unset;
+}
+
+#logo {
+    font-family: var(--font-logo);
 }
 
 h1 {
