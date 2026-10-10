@@ -3,10 +3,11 @@
 import argon2 from 'argon2-browser/dist/argon2-bundled.min.js'
 import CharMapInput from './charmapinput';
 import CharSetInput from './charsetinput';
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { PythonRandom } from './python-random'
 import PresetHandler from './presethandler';
 import GenError from './generror';
+import { dump } from 'js-toml';
 
 const encoder = new TextEncoder()
 const punctuation = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~"
@@ -28,6 +29,7 @@ export default function Generator() {
     const [hash, setHash] = useState("")
     const [error, setError] = useState("")
     const [differentiator, setDifferentiator] = useState(undefined)
+    const [copy, setCopy] = useState(false)
 
     function handlePresets(presetData) {
         setVersion(presetData.general.version)
@@ -293,7 +295,62 @@ export default function Generator() {
             result = await v3(masterpass, sitename, passlength, charsetV3, differentiator)
         }
 
+        if (copy) {
+            navigator.clipboard.writeText(result)
+        }
+
         setHash(result)
+    }
+
+    async function handlePresetGenerate() {
+        let presetName = prompt("Enter a preset name")
+        let presetDesc = prompt("Enter a preset description")
+
+        if (presetName != null || presetName != "") {
+            let presetTemplate = {
+                "preset": {
+                    "name": presetName,
+                    "description": presetDesc ? presetDesc : "",
+                    "is_default": false,
+                },
+                "general": {
+                    "version": version,
+                    "pass_length": passlength,
+                }
+            }
+
+            if (version == 1) {
+                presetTemplate.v1 = {}
+                presetTemplate.v1.spec_mode = specmode
+
+                if (specmode == "insert") {
+                    presetTemplate.v1.spec_freq = specfreq
+                    presetTemplate.v1.spec_chars = specchars
+                } else {
+                    presetTemplate.v1.char_map = charmap
+                }
+            } else if (version == 2) {
+                presetTemplate.v2 = {}
+                presetTemplate.v2.char_types = charset
+            } else {
+                presetTemplate.v3 = {}
+                presetTemplate.v3.char_types = charsetV3
+                presetTemplate.v3.differentiator = differentiator ? differentiator : ""
+            }
+
+            const tomlString = dump(presetTemplate)
+
+            const blob = new Blob([tomlString], {type: 'text/plain;charset=utf-8'})
+            const link = document.createElement("a")
+            link.href = URL.createObjectURL(blob)
+            link.download = presetName + ".toml"
+
+            document.body.appendChild(link)
+            link.click()
+
+            document.body.removeChild(link)
+            URL.revokeObjectURL(link.href)
+        }
     }
 
     return (
@@ -334,7 +391,7 @@ export default function Generator() {
                                     <select 
                                         name="version"
                                         value={version}
-                                        onChange={(e) => setVersion(e.target.value)}
+                                        onChange={(e) => setVersion(Number(e.target.value))}
                                         required={true}
                                     >
                                         <option value={1}>1</option>
@@ -349,7 +406,7 @@ export default function Generator() {
                                         type="number" 
                                         name='passlength' 
                                         value={passlength}
-                                        onChange={(e) => setPassLength(e.target.value)}
+                                        onChange={(e) => setPassLength(Number(e.target.value))}
                                         min={6}
                                         max={32}
                                         autoComplete='off'
@@ -440,12 +497,22 @@ export default function Generator() {
                             }
                             <GenError version={version} error={error}></GenError>
                         </div>
+                        <label className='flex flex-row gap-4 justify-center items-center'>
+                            Copy to Clipboard
+                            <label className='switch'>
+                                <input checked={copy} onChange={() => {setCopy(!copy)}} type="checkbox" />
+                                <span className='slider' />
+                            </label>
+                        </label>
                         <PresetHandler onChange={(presetText) => handlePresets(presetText)}/>
                         <div className="w-full h-full grid place-items-center">
                             <button className='btn text-center' type='submit'>Generate</button>
                         </div>
                     </div>
                 </form>
+                
+                <button className='btn btn-secondary mt-4' onClick={handlePresetGenerate}>Export as Preset</button>
+
             <div className="flex relative justify-center items-center w-full h-full">
                 <div className={`card-success absolute top-6 md:top-10 lg:top-20 w-fit ${hash ? 'show' : ''}`}>
                     <p className='result font-bold'>{hash}</p>
