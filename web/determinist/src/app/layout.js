@@ -61,7 +61,7 @@ export default function RootLayout({ children }) {
         <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
         <link rel="manifest" href="/manifest.webmanifest" />
       </head>
-      <body className="grid place-items-center overflow-hidden">{children}</body>
+      <body className="grid place-items-center">{children}</body>
     </html>
   );
 }
