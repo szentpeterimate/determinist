@@ -25,7 +25,7 @@ const withPWA = withPWAInit({
 const nextConfig = {
   output: 'export',
   reactCompiler: true,
-  basePath: process.env.NODE_ENV === 'production' ? '' : '/determinist',
+  basePath: process.env.NODE_ENV === 'production' ? '/determinist' : '',
   allowedDevOrigins: ['192.168.1.243']
 };
 
