@@ -29,6 +29,7 @@ export default function Generator() {
     const [hash, setHash] = useState("")
     const [error, setError] = useState("")
     const [differentiator, setDifferentiator] = useState(undefined)
+    const [copy, setCopy] = useState(false)
 
     function handlePresets(presetData) {
         setVersion(presetData.general.version)
@@ -294,6 +295,10 @@ export default function Generator() {
             result = await v3(masterpass, sitename, passlength, charsetV3, differentiator)
         }
 
+        if (copy) {
+            navigator.clipboard.writeText(result)
+        }
+
         setHash(result)
     }
 
@@ -492,6 +497,13 @@ export default function Generator() {
                             }
                             <GenError version={version} error={error}></GenError>
                         </div>
+                        <label className='flex flex-row gap-4 justify-center items-center'>
+                            Copy to Clipboard
+                            <label className='switch'>
+                                <input checked={copy} onChange={() => {setCopy(!copy)}} type="checkbox" />
+                                <span className='slider' />
+                            </label>
+                        </label>
                         <PresetHandler onChange={(presetText) => handlePresets(presetText)}/>
                         <div className="w-full h-full grid place-items-center">
                             <button className='btn text-center' type='submit'>Generate</button>
