@@ -104,7 +104,7 @@ export default function PresetHandler({ onChange }) {
                 }
             </div>
             {preset == "add" ? 
-                <input className="" type="file" accept=".toml" onChange={handleFileAdd} />
+                <input className="max-w-52 md:max-w-none" type="file" accept=".toml" onChange={handleFileAdd} />
             :
                 null
             }
