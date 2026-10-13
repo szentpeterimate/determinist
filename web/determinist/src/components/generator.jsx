@@ -1,10 +1,10 @@
 "use client"
 
-import CharMapInput from './charmapinput';
-import CharSetInput from './charsetinput';
+import CharMapInput from './inputs/charmapinput';
+import CharSetInput from './inputs/charsetinput';
 import { useEffect, useState } from 'react'
-import PresetHandler from './presethandler';
-import GenError from './generror';
+import PresetHandler from './handlers/presethandler';
+import GenError from './handlers/generror';
 import { dump } from 'js-toml';
 import { v1, v2, v3, punctuation } from '@/modules/algorithms';
 
