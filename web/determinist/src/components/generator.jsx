@@ -355,7 +355,7 @@ export default function Generator() {
 
     return (
         <>
-            <div className='card flex flex-col items-center justify-center gap-0'>
+            <div className='maincard md:card m-4 mb-0 flex flex-col items-center justify-center gap-0'>
                 <form onSubmit={handleGenerate} className='generator grid place-items-center'>
                     <div className="flex flex-col gap-2">
                         <div className='w-full h-full'>
@@ -477,20 +477,25 @@ export default function Generator() {
                             : version == 2 ?
                                 <CharSetInput charSet={charset} version={version} onChange={(sets) => {version == 2 ? setCharSet(sets) : setCharSetV3(sets)} } />
                             : version == 3 ?
-                                <div className="">
+                                <div className="flex flex-col justify-center align-center gap-2">
                                     <CharSetInput charSet={charset} defCharSetV3={charsetV3} version={version} onChange={(sets) => {version == 2 ? setCharSet(sets) : setCharSetV3(sets)} } />
-                                    <label className='flex flex-row justify-center'>
-                                        Differentiator
-                                        <input 
-                                            className='differentiator text-base font-normal'
-                                            type="text" 
-                                            name='differentiator' 
-                                            value={differentiator}
-                                            onChange={(e) => {if (e.target.value.trim() !== "") {setDifferentiator(e.target.value)} else setDifferentiator(undefined)}}
-                                            autoComplete='off'
-                                            required={false}
-                                        />
-                                    </label>
+                                    <div className="grid grid-rows-1 grid-cols-2">
+                                        <label className=''>
+                                            Differentiator
+                                        </label>
+                                        <div className="flex">
+                                            <input
+                                                className='differentiator text-base font-normal w-full'
+                                                type="text" 
+                                                name='differentiator' 
+                                                value={differentiator}
+                                                onChange={(e) => {if (e.target.value.trim() !== "") {setDifferentiator(e.target.value)} else setDifferentiator(undefined)}}
+                                                autoComplete='off'
+                                                required={false}
+                                            />
+                                        </div>
+                                    </div>
+                                    
                                 </div>
                             :
                                 null
@@ -510,11 +515,9 @@ export default function Generator() {
                         </div>
                     </div>
                 </form>
-                
-                <button className='btn btn-secondary mt-4' onClick={handlePresetGenerate}>Export as Preset</button>
-
-            <div className="flex relative justify-center items-center w-full h-full">
-                <div className={`card-success absolute top-6 md:top-10 lg:top-20 w-fit ${hash ? 'show' : ''}`}>
+                <button className='btn btn-secondary mt-2' onClick={handlePresetGenerate}>Export as Preset</button>
+            <div>
+                <div className={`card-success ${hash ? 'show' : ''}`}>
                     <p className='result font-bold'>{hash}</p>
                 </div>
             </div>
