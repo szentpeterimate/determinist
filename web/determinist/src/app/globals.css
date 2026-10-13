@@ -9,7 +9,6 @@
 body {
     background-color: var(--color-background);
     font-family: var(--font-display);
-    padding: 16px;
     color: #F0F0F0;
 }
 
@@ -42,7 +41,11 @@ label {
     font-weight: bold;
 }
 
-.card  {
+.maincard {
+    width: fit-content;
+}
+
+@utility card {
     border-radius: 1rem;
     border: #1d1e2c 1px solid;
     box-shadow: rgb(0 0 0 / 0.5) 0 0.5rem 1rem 0.1rem;
@@ -57,16 +60,19 @@ label {
     padding: 0.5rem 1rem;
     opacity: 0%;
     pointer-events: none;
-    transform: translateY(10rem);
 
     transition: ease 300ms;
     -webkit-transition: ease 300ms;
+
+    position: fixed;
+    bottom: 3vh;
+    left: 50%;
+    transform: translateX(-50%);
 }
 
 .card-success.show {
     opacity: 100%;
     pointer-events: auto;
-    transform: translateY(0);
     background-color: #161721;
 
     transition: ease 300ms;
