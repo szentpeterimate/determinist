@@ -85,6 +85,7 @@ export default function Generator() {
         }
 
         setHash(result)
+        setTimeout(() => {setHash("")}, 10000)
     }
 
     async function handlePresetGenerate() {
