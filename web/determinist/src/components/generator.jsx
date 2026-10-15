@@ -140,7 +140,7 @@ export default function Generator() {
 
     return (
         <>
-            <div className='maincard md:card m-4 mb-0 flex flex-col items-center justify-center gap-0'>
+            <div className='maincard md:card m-4 flex flex-col items-center justify-center gap-0'>
                 <form onSubmit={handleGenerate} className='generator grid place-items-center'>
                     <div className="flex flex-col gap-2">
                         <div className='w-full h-full'>

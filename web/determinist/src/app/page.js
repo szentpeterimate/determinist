@@ -1,5 +1,6 @@
 "use client"
-import Generator from "../components/generator"
+import Generator from "@/components/generator"
+import Description from "@/components/description"
 
 export default function Home() {
   return (
@@ -9,6 +10,7 @@ export default function Home() {
         <p className="text-center">A deterministic password generator</p>
       </div>
       <Generator />
+      <Description />
     </main>
   )
 }
