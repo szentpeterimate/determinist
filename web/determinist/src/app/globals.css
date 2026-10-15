@@ -10,6 +10,8 @@ body {
     background-color: var(--color-background);
     font-family: var(--font-display);
     color: #F0F0F0;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
 .diff {
@@ -31,9 +33,28 @@ h2 {
     font-size: 24px;
 }
 
+h3 {
+    font-size: 22px;
+    font-weight: bold;
+}
+
+h4 {
+    font-size: 20px;
+    font-weight: bold;
+}
+
+h5 {
+    font-size: 18px;
+    font-weight: bold;
+}
+
 p {
     font-size: 16px;
     line-height: 24px;
+}
+
+ol {
+    list-style: decimal;
 }
 
 label {
