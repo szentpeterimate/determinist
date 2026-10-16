@@ -1,14 +1,16 @@
 "use client"
-import Generator from "../components/generator"
+import Generator from "@/components/generator"
+import Description from "@/components/description"
 
 export default function Home() {
   return (
-    <main className="container grid place-items-center gap-16">
-      <div className="title">
-        <h1 className="font-logo text-center">Determinist</h1>
-        <p>A deterministic password generator</p>
+    <main className="container flex flex-col justify-center items-center gap-4">
+      <div className="title m-4">
+        <h1 className="text-center" id="logo">Determinist</h1>
+        <p className="text-center">A deterministic password generator</p>
       </div>
       <Generator />
+      <Description />
     </main>
   )
 }

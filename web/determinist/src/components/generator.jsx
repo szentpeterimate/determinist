@@ -1,141 +1,73 @@
 "use client"
 
-import argon2 from 'argon2-browser/dist/argon2-bundled.min.js'
-import CharMapInput from './charmapinput';
-import CharSetInput from './charsetinput';
+import CharMapInput from './inputs/charmapinput';
+import CharSetInput from './inputs/charsetinput';
 import { useState } from 'react'
-import { PythonRandom } from './python-random'
-import PresetHandler from './presethandler';
-
-const encoder = new TextEncoder()
-const punctuation = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~"
-const asciiLowercase = "abcdefghijklmnopqrstuvwxyz"
-const asciiUppercase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-const digits = "0123456789"
+import PresetHandler from './handlers/presethandler';
+import GenError from './handlers/generror';
+import { dump } from 'js-toml';
+import { v1, v2, v3, punctuation } from '@/modules/algorithms';
 
 export default function Generator() {
     const [masterpass, setMasterpass] = useState("")
     const [sitename, setSitename] = useState("")
     const [passlength, setPassLength] = useState(8)
-    const [version, setVersion] = useState(2)
+    const [version, setVersion] = useState(3)
     const [specmode, setSpecMode] = useState("insert")
     const [charmap, setCharMap] = useState({})
     const [specchars, setSpecChars] = useState(punctuation)
     const [specfreq, setSpecFreq] = useState(4)
     const [charset, setCharSet] = useState(["lowercase", "uppercase", "digits", "special"])
+    const [charsetV3, setCharSetV3] = useState({"lowercase": 1, "uppercase": 1, "digits": 1, "special": 1})
     const [hash, setHash] = useState("")
-    const [error, setError] = useState(false)
+    const [error, setError] = useState("")
+    const [differentiator, setDifferentiator] = useState(undefined)
+    const [copy, setCopy] = useState(false)
 
     function handlePresets(presetData) {
-
         setVersion(presetData.general.version)
         setPassLength(presetData.general.pass_length)
 
         if (presetData.general.version == 1) {
-            setSpecChars(presetData.v1.spec_chars)
-            setSpecFreq(presetData.v1.spec_freq)
             setSpecMode(presetData.v1.spec_mode)
-            setCharMap(presetData.v1.char_map)
+            if (presetData.v1.spec_mode == "insert") {
+                setSpecChars(presetData.v1.spec_chars)
+                setSpecFreq(presetData.v1.spec_freq)
+            } else {
+                setCharMap(presetData.v1.char_map)
+            }
         } else if (presetData.general.version == 2) {
             setCharSet(presetData.v2.char_types)
+        } else if (presetData.general.version == 3) {
+            setCharSet(Object.keys(presetData.v3.char_types))
+            setCharSetV3(presetData.v3.char_types)
+            setDifferentiator(presetData.v3.differentiator)
         }
-    }
-
-    async function v1(masterPass, siteName, passLength = 8, specMode = "insert", charMap = {}, specChars = punctuation, specFreq = 4) {
-        const hashedString = await argon2.hash({
-            pass: masterPass,
-            salt: siteName,
-            time: 2,
-            mem: 65536,
-            parallelism: 4,
-            hashLen: 32,
-            type: argon2.ArgonType.Argon2id
-        })
-        const stripped = hashedString.encoded.split('$').at(-1)
-
-        let charsAdded = ""
-        if (specMode == "insert") {
-            for (let i = 0; i < stripped.length; i++) {
-                charsAdded += stripped[i]
-                if ((i + 1) % specFreq == 0) {
-                    charsAdded += specChars[i % specChars.length]
-                }
-            }
-        } else if (specMode == "replace") {
-            for (let i = 0; i < stripped.length; i++) {
-                if (stripped[i].toLowerCase() in charMap) {
-                    charsAdded += charMap[stripped[i].toLowerCase()]
-                } else {
-                    charsAdded += stripped[i]
-                }
-            }
-        }
-
-        const finalPassword = charsAdded.slice(-passLength)
-
-        return finalPassword
-    }
-
-    async function v2(masterPass, siteName, passLength = 8, charTypes = ["digits", "special", "lowercase", "uppercase"]) {
-        const typesSet = new Set(charTypes)
-        let charSet = ""
-
-        if (typesSet.has("special")) {
-            charSet += punctuation
-        }
-        if (typesSet.has("lowercase")) {
-            charSet += asciiLowercase
-        }
-        if (typesSet.has("uppercase")) {
-            charSet += asciiUppercase
-        }
-        if (typesSet.has("digits")) {
-            charSet += digits
-        }
-
-        const salt = masterPass + siteName + String(passLength) + "{}" + charSet
-        
-        const rng = new PythonRandom(salt)
-        
-        const charSetList = rng.shuffle(charSet.split(''))
-
-        const hashedBytes = await argon2.hash({
-            pass: encoder.encode(masterPass),
-            salt: encoder.encode(salt),
-            time: 2,
-            mem: 65536,
-            parallelism: 4,
-            hashLen: 32*passLength,
-            type: argon2.ArgonType.Argon2id
-        })
-
-        const stream = encoder.encode(hashedBytes.encoded) 
-
-        let password = ""
-        const limit = 256 - (256 % charSetList.length)
-        for (let i = 0; i < stream.length; i++) {
-            const byte = stream[i]
-            if (password.length == passLength) {
-                break
-            } else if (byte < limit) {
-                password += charSetList[byte % charSetList.length]
-            }
-        }
-        let passwordToShuffle = password.split('')
-        const shuffled_pass = rng.shuffle(passwordToShuffle)
-        const final = shuffled_pass.join('')
-        
-        return final
     }
 
     async function handleGenerate(e) {
         e.preventDefault()
 
         if (charset.length == 0) {
-            setError(true)
+            setError("no_types")
             return
         } else {
-            setError(false)
+            setError("")
+        }
+
+        let totalLength = Object.values(charsetV3).reduce((sum, value) => sum + value, 0)
+        if (passlength < totalLength) {
+            setError("sum_len")
+            return
+        } else {
+            setError("")
+        }
+
+        if (totalLength == 0) {
+            setError("no_types")
+            return
+        } else {
+            setError("")
         }
 
         let result = ""
@@ -144,14 +76,72 @@ export default function Generator() {
             result = await v1(masterpass, sitename, passlength, specmode, charmap, specchars, specfreq)
         } else if (version == 2) {
             result = await v2(masterpass, sitename, passlength, charset)
+        } else if (version == 3) {
+            result = await v3(masterpass, sitename, passlength, charsetV3, differentiator)
+        }
+
+        if (copy) {
+            navigator.clipboard.writeText(result)
         }
 
         setHash(result)
+        setTimeout(() => {setHash("")}, 10000)
+    }
+
+    async function handlePresetGenerate() {
+        let presetName = prompt("Enter a preset name")
+        let presetDesc = prompt("Enter a preset description")
+
+        if (presetName != null || presetName != "") {
+            let presetTemplate = {
+                "preset": {
+                    "name": presetName,
+                    "description": presetDesc ? presetDesc : "",
+                    "is_default": false,
+                },
+                "general": {
+                    "version": version,
+                    "pass_length": passlength,
+                }
+            }
+
+            if (version == 1) {
+                presetTemplate.v1 = {}
+                presetTemplate.v1.spec_mode = specmode
+
+                if (specmode == "insert") {
+                    presetTemplate.v1.spec_freq = specfreq
+                    presetTemplate.v1.spec_chars = specchars
+                } else {
+                    presetTemplate.v1.char_map = charmap
+                }
+            } else if (version == 2) {
+                presetTemplate.v2 = {}
+                presetTemplate.v2.char_types = charset
+            } else {
+                presetTemplate.v3 = {}
+                presetTemplate.v3.char_types = charsetV3
+                presetTemplate.v3.differentiator = differentiator ? differentiator : ""
+            }
+
+            const tomlString = dump(presetTemplate)
+
+            const blob = new Blob([tomlString], {type: 'text/plain;charset=utf-8'})
+            const link = document.createElement("a")
+            link.href = URL.createObjectURL(blob)
+            link.download = presetName + ".toml"
+
+            document.body.appendChild(link)
+            link.click()
+
+            document.body.removeChild(link)
+            URL.revokeObjectURL(link.href)
+        }
     }
 
     return (
         <>
-            <div className='card flex flex-col items-center justify-center gap-0'>
+            <div className='maincard md:card m-4 flex flex-col items-center justify-center gap-0'>
                 <form onSubmit={handleGenerate} className='generator grid place-items-center'>
                     <div className="flex flex-col gap-2">
                         <div className='w-full h-full'>
@@ -187,11 +177,12 @@ export default function Generator() {
                                     <select 
                                         name="version"
                                         value={version}
-                                        onChange={(e) => setVersion(e.target.value)}
+                                        onChange={(e) => setVersion(Number(e.target.value))}
                                         required={true}
                                     >
                                         <option value={1}>1</option>
                                         <option value={2}>2</option>
+                                        <option value={3}>3</option>
                                     </select>
                                 </div>
                                 <label className='w-full'>Password Length</label>
@@ -201,7 +192,7 @@ export default function Generator() {
                                         type="number" 
                                         name='passlength' 
                                         value={passlength}
-                                        onChange={(e) => setPassLength(e.target.value)}
+                                        onChange={(e) => e.target.value === '' ? setPassLength('') : setPassLength(Number(e.target.value))}
                                         min={6}
                                         max={32}
                                         autoComplete='off'
@@ -270,20 +261,49 @@ export default function Generator() {
                                     </div>
                                 </div> 
                             : version == 2 ?
-                                <CharSetInput charSet={charset} onChange={(sets) => {setCharSet(sets)} } />
+                                <CharSetInput charSet={charset} version={version} onChange={(sets) => {version == 2 ? setCharSet(sets) : setCharSetV3(sets)} } />
+                            : version == 3 ?
+                                <div className="flex flex-col justify-center align-center gap-2">
+                                    <CharSetInput charSet={charset} defCharSetV3={charsetV3} version={version} onChange={(sets) => {version == 2 ? setCharSet(sets) : setCharSetV3(sets)} } />
+                                    <div className="grid grid-rows-1 grid-cols-2">
+                                        <label className=''>
+                                            Differentiator
+                                        </label>
+                                        <div className="flex">
+                                            <input
+                                                className='differentiator text-base font-normal w-full'
+                                                type="text" 
+                                                name='differentiator' 
+                                                value={differentiator ?? ''}
+                                                onChange={(e) => {if (e.target.value.trim() !== "") {setDifferentiator(e.target.value)} else setDifferentiator(undefined)}}
+                                                autoComplete='off'
+                                                required={false}
+                                            />
+                                        </div>
+                                    </div>
+                                    
+                                </div>
                             :
                                 null
                             }
-                            { error ? <p className='text-red-500 mt-4'>At least one type of character must be selected</p> : null}
+                            <GenError version={version} error={error}></GenError>
                         </div>
+                        <label className='flex flex-row gap-4 justify-center items-center'>
+                            Copy to Clipboard
+                            <label className='switch'>
+                                <input checked={copy} onChange={() => {setCopy(!copy)}} type="checkbox" />
+                                <span className='slider' />
+                            </label>
+                        </label>
                         <PresetHandler onChange={(presetText) => handlePresets(presetText)}/>
                         <div className="w-full h-full grid place-items-center">
                             <button className='btn text-center' type='submit'>Generate</button>
                         </div>
                     </div>
                 </form>
-            <div className="flex relative justify-center items-center w-full h-full">
-                <div className={`card-success absolute top-6 md:top-10 lg:top-20 w-fit ${hash ? 'show' : ''}`}>
+                <button className='btn btn-secondary mt-2' onClick={handlePresetGenerate}>Export as Preset</button>
+            <div>
+                <div className={`card-success ${hash ? 'show' : ''}`}>
                     <p className='result font-bold'>{hash}</p>
                 </div>
             </div>
