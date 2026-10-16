@@ -39,6 +39,15 @@ class ConfigHandler:
 
             [v2]
             char_types = ["special", "lowercase", "uppercase", "digits"]
+
+            [v3]
+            differentiator = ""
+
+            [v3.char_types]
+            lowercase = 1
+            uppercase = 1
+            special = 1
+            digits = 1
             """
 
             default_config = inspect.cleandoc(default_config)
