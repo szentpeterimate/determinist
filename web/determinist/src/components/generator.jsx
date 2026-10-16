@@ -192,7 +192,7 @@ export default function Generator() {
                                         type="number" 
                                         name='passlength' 
                                         value={passlength}
-                                        onChange={(e) => setPassLength(Number(e.target.value))}
+                                        onChange={(e) => e.target.value === '' ? setPassLength('') : setPassLength(Number(e.target.value))}
                                         min={6}
                                         max={32}
                                         autoComplete='off'
