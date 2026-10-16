@@ -274,7 +274,7 @@ export default function Generator() {
                                                 className='differentiator text-base font-normal w-full'
                                                 type="text" 
                                                 name='differentiator' 
-                                                value={differentiator}
+                                                value={differentiator ?? ''}
                                                 onChange={(e) => {if (e.target.value.trim() !== "") {setDifferentiator(e.target.value)} else setDifferentiator(undefined)}}
                                                 autoComplete='off'
                                                 required={false}
