@@ -2,7 +2,7 @@
 
 import CharMapInput from './inputs/charmapinput';
 import CharSetInput from './inputs/charsetinput';
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import PresetHandler from './handlers/presethandler';
 import GenError from './handlers/generror';
 import { dump } from 'js-toml';
