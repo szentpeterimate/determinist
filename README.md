@@ -56,7 +56,9 @@ You can read more about how the individual algorithms work [here](https://github
 ### Web
 Just enter your master password, the name of the site you'd like to generate a password for, and optionally customize the other settings as you wish, and click generate! 
 
-> Note: The Determinist website does NOT connect to any servers other than GitHub and Google Fonts. All your information is safe, and is not stored locally or on any server (with the exception of saved presets which are locally on your machine/browser), as the entire generation process is client-side.
+If you'd like to use Determinist on mobile without having to open the website, you can now install it as an app! It works even if you don't have access to the internet. Just make sure that you give it time to install everything when first opening the app.
+
+> Note: The Determinist website does NOT connect to any servers other than GitHub. All your information is safe, and is not stored locally or on any server (with the exception of saved presets and the website itself which are stored locally on your machine/browser), as the entire generation process is client-side.
 
 ### CLI
 - `generate`: This will run the generation, you can use the options below with it. You can also omit the master and site, as Determinist will prompt you for them if you do
