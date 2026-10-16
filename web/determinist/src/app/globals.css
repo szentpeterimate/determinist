@@ -100,7 +100,7 @@ label {
     -webkit-transition: ease 300ms;
 }
 
-input, .btn {
+input, .btn, select {
     border-radius: 0.5rem;
 }
 
@@ -120,7 +120,7 @@ input:not([type="checkbox"]):hover {
     -webkit-transition: ease 200ms;
 }
 
-input:not([type="checkbox"]):focus {
+input:not([type="checkbox"]):focus, select:focus {
     outline: #2d2e44 2px solid;
 
     transition: ease 200ms;

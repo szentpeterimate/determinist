@@ -2,7 +2,7 @@ export default function Description() {
     return (
         <div className="description mx-4 md:mx-0">
             <h2 className="text-center mb-4">About Determinist</h2>
-            <p className="mb-8 max-w-1/2 my-0 mx-auto">Determinist is a deterministic password generator designed with ease of recovery in mind. It takes various inputs such as a master password, the name of the website you're generating a password for, and what characters you'd like, and you get a password you can recover anytime, as the same inputs will always return the exact same password.</p>
+            <p className="mb-8 md:max-w-1/2 my-0 mx-8 md:mx-auto">Determinist is a deterministic password generator designed with ease of recovery in mind. It takes various inputs such as a master password, the name of the website you're generating a password for, and what characters you'd like, and you get a password you can recover anytime, as the same inputs will always return the exact same password.</p>
             <div className="md:card">
                 <h3 className="ml-4 mt-2">Algorithms</h3>
                 <div className="flex flex-col md:flex-row gap-4 mx-8 my-4">

@@ -2,7 +2,7 @@
 
 import CharMapInput from './inputs/charmapinput';
 import CharSetInput from './inputs/charsetinput';
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import PresetHandler from './handlers/presethandler';
 import GenError from './handlers/generror';
 import { dump } from 'js-toml';
@@ -85,6 +85,7 @@ export default function Generator() {
         }
 
         setHash(result)
+        setTimeout(() => {setHash("")}, 10000)
     }
 
     async function handlePresetGenerate() {
@@ -191,7 +192,7 @@ export default function Generator() {
                                         type="number" 
                                         name='passlength' 
                                         value={passlength}
-                                        onChange={(e) => setPassLength(Number(e.target.value))}
+                                        onChange={(e) => e.target.value === '' ? setPassLength('') : setPassLength(Number(e.target.value))}
                                         min={6}
                                         max={32}
                                         autoComplete='off'
@@ -273,7 +274,7 @@ export default function Generator() {
                                                 className='differentiator text-base font-normal w-full'
                                                 type="text" 
                                                 name='differentiator' 
-                                                value={differentiator}
+                                                value={differentiator ?? ''}
                                                 onChange={(e) => {if (e.target.value.trim() !== "") {setDifferentiator(e.target.value)} else setDifferentiator(undefined)}}
                                                 autoComplete='off'
                                                 required={false}
